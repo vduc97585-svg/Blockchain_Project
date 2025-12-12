@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+web3
+python-dotenv
+ipfshttpclient
+pydantic
+eth_account
