@@ -62,12 +62,15 @@ def get_doctor_tokens(doctor: str):
             can_write = contract.functions.can_write(token_id, doctor).call()
             if can_write:
                 cid = contract.functions.tokenURI(token_id).call()
+                patient_addr = contract.functions.ownerOf(token_id).call()  # <-- thêm dòng này
                 tokens.append({
                     "tokenId": token_id,
-                    "cid": cid
+                    "cid": cid,
+                    "patient": patient_addr   # <-- trả luôn patient
                 })
 
         return {"tokens": tokens}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+

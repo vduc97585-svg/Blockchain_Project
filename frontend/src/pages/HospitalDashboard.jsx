@@ -1,167 +1,211 @@
-// src/pages/HospitalDashboard.jsx
-import React, { useState } from "react";
-import { BrowserProvider } from "ethers"; // ethers v6
+import React, { useEffect, useState } from "react";
 import { loadContract } from "../web3";
 
 export default function HospitalDashboard() {
+  const [account, setAccount] = useState("");
+
+  // upload
+  const [uploadFile, setUploadFile] = useState(null);
+  const [cid, setCid] = useState("");
+
+  // mint
   const [tokenId, setTokenId] = useState("");
   const [patientAddr, setPatientAddr] = useState("");
-  const [cid, setCid] = useState("");
-  const [uploadFile, setUploadFile] = useState(null);
-  const [tx, setTx] = useState(null);
 
+  // doctor
   const [doctorAddr, setDoctorAddr] = useState("");
   const [grantTokenId, setGrantTokenId] = useState("");
 
-  function isValidEthAddress(address) {
-    return /^0x[a-fA-F0-9]{40}$/.test(address.trim());
+  const [txHash, setTxHash] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // =============================
+  // METAMASK
+  // =============================
+  useEffect(() => {
+    async function init() {
+      if (!window.ethereum) {
+        alert("MetaMask chưa cài");
+        return;
+      }
+      const accs = await window.ethereum.request({
+        method: "eth_requestAccounts"
+      });
+      setAccount(accs[0]);
+    }
+    init();
+  }, []);
+
+  function isEth(addr) {
+    return /^0x[a-fA-F0-9]{40}$/.test(addr.trim());
   }
 
-  async function handleUploadToIPFS() {
+  // =============================
+  // 📤 UPLOAD FILE (SERVER HANDLE CRYPTO)
+  // =============================
+  async function uploadToIPFS() {
     if (!uploadFile) return alert("Chọn file trước");
-  
+
     try {
+      setLoading(true);
+
       const fd = new FormData();
       fd.append("file", uploadFile);
-  
+
       const res = await fetch("http://localhost:8000/ipfs/upload", {
         method: "POST",
         body: fd
       });
-  
-      if (!res.ok) throw new Error("Upload failed");
-  
+
       const data = await res.json();
-      console.log("IPFS response:", data);
-  
       setCid(data.cid);
-      alert("Uploaded to IPFS\nCID: " + data.cid);
-    } catch (err) {
-      console.error(err);
-      alert("IPFS upload error: " + err.message);
+
+      alert("Uploaded file\nCID: " + data.cid);
+    } catch (e) {
+      console.error(e);
+      alert("Upload lỗi");
+    } finally {
+      setLoading(false);
     }
   }
-  
 
-  // ----------------- SMART CONTRACT CALLS -----------------
-
-  // ✅ Hospital chỉ được mint record
+  // =============================
+  // 🏥 MINT RECORD
+  // =============================
   async function mintRecord() {
     if (!tokenId || !patientAddr || !cid)
-      return alert("tokenId, patient, cid required");
-    if (!isValidEthAddress(patientAddr))
-      return alert("Invalid patient address");
+      return alert("Thiếu tokenId / patient / cid");
+    if (!isEth(patientAddr))
+      return alert("Patient address không hợp lệ");
 
     try {
+      setLoading(true);
       const { contract } = await loadContract();
-      const txResp = await contract.mint_record(
+
+      const tx = await contract.mint_record(
         Number(tokenId),
         patientAddr,
         cid
       );
-      setTx(txResp.hash);
-      alert("Mint sent: " + txResp.hash);
-      await txResp.wait();
-      alert("Record minted!");
-    } catch (err) {
-      console.error(err);
-      alert("Mint error: " + (err.info?.error?.message || err.message));
+
+      setTxHash(tx.hash);
+      await tx.wait();
+      alert("Mint record thành công");
+    } catch (e) {
+      console.error(e);
+      alert(e.info?.error?.message || e.message);
+    } finally {
+      setLoading(false);
     }
   }
 
+  // =============================
+  // 👨‍⚕️ REGISTER / UNREGISTER DOCTOR
+  // =============================
   async function registerDoctor() {
-    if (!doctorAddr)
-      return alert("Doctor address required");
-    if (!isValidEthAddress(doctorAddr))
-      return alert("Invalid doctor address");
+    if (!isEth(doctorAddr))
+      return alert("Doctor address không hợp lệ");
 
     try {
+      setLoading(true);
       const { contract } = await loadContract();
-      const txResp = await contract.register_doctor(doctorAddr);
-      setTx(txResp.hash);
-      alert("Sent: " + txResp.hash);
-      await txResp.wait();
-      alert("Doctor registered!");
-    } catch (err) {
-      console.error(err);
-      alert("Register error: " + (err.info?.error?.message || err.message));
+      const tx = await contract.register_doctor(doctorAddr);
+      setTxHash(tx.hash);
+      await tx.wait();
+      alert("Đã register doctor");
+    } catch (e) {
+      console.error(e);
+      alert("Register lỗi");
+    } finally {
+      setLoading(false);
     }
   }
 
   async function unregisterDoctor() {
-    if (!doctorAddr)
-      return alert("Doctor address required");
-    if (!isValidEthAddress(doctorAddr))
-      return alert("Invalid doctor address");
+    if (!isEth(doctorAddr))
+      return alert("Doctor address không hợp lệ");
 
     try {
+      setLoading(true);
       const { contract } = await loadContract();
-      const txResp = await contract.unregister_doctor(doctorAddr);
-      setTx(txResp.hash);
-      alert("Sent: " + txResp.hash);
-      await txResp.wait();
-      alert("Doctor unregistered!");
-    } catch (err) {
-      console.error(err);
-      alert("Unregister error: " + (err.info?.error?.message || err.message));
+      const tx = await contract.unregister_doctor(doctorAddr);
+      setTxHash(tx.hash);
+      await tx.wait();
+      alert("Đã unregister doctor");
+    } catch (e) {
+      console.error(e);
+      alert("Unregister lỗi");
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function grantDoctor() {
-    if (!grantTokenId || !doctorAddr)
-      return alert("TokenId + doctor address required");
-    if (!isValidEthAddress(doctorAddr))
-      return alert("Invalid doctor address");
+  // =============================
+  // ✍️ GRANT / REVOKE WRITE
+  // =============================
+  async function grantWrite() {
+    if (!grantTokenId || !isEth(doctorAddr))
+      return alert("Thiếu tokenId hoặc doctor");
 
     try {
+      setLoading(true);
       const { contract } = await loadContract();
-      const txResp = await contract.hospital_grant_write(
+      const tx = await contract.hospital_grant_write(
         Number(grantTokenId),
         doctorAddr
       );
-      setTx(txResp.hash);
-      alert("Sent: " + txResp.hash);
-      await txResp.wait();
-      alert("Doctor granted write!");
-    } catch (err) {
-      console.error(err);
-      alert("Grant error: " + (err.info?.error?.message || err.message));
+      setTxHash(tx.hash);
+      await tx.wait();
+      alert("Grant write thành công");
+    } catch (e) {
+      console.error(e);
+      alert("Grant lỗi");
+    } finally {
+      setLoading(false);
     }
   }
 
-  async function revokeDoctor() {
-    if (!grantTokenId || !doctorAddr)
-      return alert("TokenId + doctor address required");
-    if (!isValidEthAddress(doctorAddr))
-      return alert("Invalid doctor address");
+  async function revokeWrite() {
+    if (!grantTokenId || !isEth(doctorAddr))
+      return alert("Thiếu tokenId hoặc doctor");
 
     try {
+      setLoading(true);
       const { contract } = await loadContract();
-      const txResp = await contract.hospital_revoke_write(
+      const tx = await contract.hospital_revoke_write(
         Number(grantTokenId),
         doctorAddr
       );
-      setTx(txResp.hash);
-      alert("Sent: " + txResp.hash);
-      await txResp.wait();
-      alert("Doctor revoked!");
-    } catch (err) {
-      console.error(err);
-      alert("Revoke error: " + (err.info?.error?.message || err.message));
+      setTxHash(tx.hash);
+      await tx.wait();
+      alert("Revoke write thành công");
+    } catch (e) {
+      console.error(e);
+      alert("Revoke lỗi");
+    } finally {
+      setLoading(false);
     }
   }
 
+  // =============================
+  // UI
+  // =============================
   return (
-    <div className="p-6">
-      <h2 className="text-xl font-bold mb-3">Hospital Dashboard</h2>
+    <div className="p-6 max-w-2xl">
+      <h2 className="text-xl font-bold mb-2">Hospital Dashboard</h2>
+      <p className="mb-4">Connected: {account}</p>
 
-      {/* IPFS Upload */}
-      <section className="border p-4 mb-6 rounded">
-        <h3 className="font-semibold mb-2">Upload Medical File (IPFS)</h3>
-        <input type="file" onChange={(e) => setUploadFile(e.target.files[0])} />
+      {/* UPLOAD */}
+      <section className="border p-4 rounded mb-6">
+        <h3 className="font-semibold mb-2">Upload Medical File</h3>
+        <input
+          type="file"
+          onChange={(e) => setUploadFile(e.target.files[0])}
+        />
         <button
-          className="ml-2 px-4 py-1 bg-sky-600 text-white rounded"
-          onClick={handleUploadToIPFS}
+          className="ml-2 px-3 py-1 bg-sky-600 text-white rounded"
+          onClick={uploadToIPFS}
+          disabled={loading}
         >
           Upload
         </button>
@@ -174,104 +218,89 @@ export default function HospitalDashboard() {
         />
       </section>
 
-
-      {/* Mint Record */}
-      <section className="mb-6 border p-4 rounded">
+      {/* MINT */}
+      <section className="border p-4 rounded mb-6">
         <h3 className="font-semibold mb-2">Mint Record</h3>
-
         <input
           className="border p-2 w-full mb-2"
+          placeholder="Token ID"
           value={tokenId}
           onChange={(e) => setTokenId(e.target.value)}
-          placeholder="Token ID"
         />
-
         <input
           className="border p-2 w-full mb-2"
+          placeholder="Patient address"
           value={patientAddr}
           onChange={(e) => setPatientAddr(e.target.value)}
-          placeholder="Patient address (0x...)"
         />
-
-        <input
-          className="border p-2 w-full mb-2"
-          value={cid}
-          onChange={(e) => setCid(e.target.value)}
-          placeholder="CID"
-        />
-
         <button
           className="px-4 py-2 bg-green-600 text-white rounded"
           onClick={mintRecord}
+          disabled={loading}
         >
-          Mint Record
+          Mint
         </button>
       </section>
 
-      {/* Doctor Management */}
-      <section className="mb-6 border p-4 rounded">
+      {/* DOCTOR */}
+      <section className="border p-4 rounded mb-6">
         <h3 className="font-semibold mb-2">Doctor Management</h3>
-
         <input
           className="border p-2 w-full mb-2"
+          placeholder="Doctor address"
           value={doctorAddr}
           onChange={(e) => setDoctorAddr(e.target.value)}
-          placeholder="Doctor address (0x...)"
         />
-
         <div className="flex gap-2">
           <button
-            className="px-4 py-2 bg-amber-600 text-white rounded"
+            className="px-3 py-1 bg-indigo-600 text-white rounded"
             onClick={registerDoctor}
+            disabled={loading}
           >
-            Register Doctor
+            Register
           </button>
-
           <button
-            className="px-4 py-2 bg-red-600 text-white rounded"
+            className="px-3 py-1 bg-gray-600 text-white rounded"
             onClick={unregisterDoctor}
+            disabled={loading}
           >
-            Unregister Doctor
+            Unregister
           </button>
         </div>
       </section>
 
-      {/* Grant / Revoke Write */}
-      <section className="mb-6 border p-4 rounded">
-        <h3 className="font-semibold mb-2">Grant / Revoke Doctor Write</h3>
-
+      {/* GRANT */}
+      <section className="border p-4 rounded">
+        <h3 className="font-semibold mb-2">Grant / Revoke Write</h3>
         <input
           className="border p-2 w-full mb-2"
+          placeholder="Token ID"
           value={grantTokenId}
           onChange={(e) => setGrantTokenId(e.target.value)}
-          placeholder="Token ID"
         />
-
-        <input
-          className="border p-2 w-full mb-2"
-          value={doctorAddr}
-          onChange={(e) => setDoctorAddr(e.target.value)}
-          placeholder="Doctor address (0x...)"
-        />
-
         <div className="flex gap-2">
           <button
-            className="px-4 py-2 bg-amber-600 text-white rounded"
-            onClick={grantDoctor}
+            className="px-3 py-1 bg-amber-600 text-white rounded"
+            onClick={grantWrite}
+            disabled={loading}
           >
-            Grant Write
+            Grant
           </button>
-
           <button
-            className="px-4 py-2 bg-red-600 text-white rounded"
-            onClick={revokeDoctor}
+            className="px-3 py-1 bg-red-600 text-white rounded"
+            onClick={revokeWrite}
+            disabled={loading}
           >
-            Revoke Write
+            Revoke
           </button>
         </div>
       </section>
 
-      {tx && <p className="mt-4">Last tx: {tx}</p>}
+      {txHash && (
+        <p className="mt-4 text-sm break-all">
+          Last TX: {txHash}
+        </p>
+      )}
     </div>
   );
 }

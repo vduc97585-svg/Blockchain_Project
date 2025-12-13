@@ -1,45 +1,54 @@
-// src/pages/DoctorDashboard.jsx
 import React, { useEffect, useState } from "react";
 import { loadContract } from "../web3";
 
-export default function DoctorDashboard({ }) {
+export default function DoctorDashboard() {
+  const [account, setAccount] = useState("");
+
   const [tokens, setTokens] = useState([]);
   const [selectedToken, setSelectedToken] = useState(null);
+
   const [uploadFile, setUploadFile] = useState(null);
   const [cid, setCid] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState("");
   const [txStatus, setTxStatus] = useState("");
-  const [account, setAccount] = useState("");
 
+  // =============================
+  // LOAD METAMASK ACCOUNT
+  // =============================
   useEffect(() => {
-    async function load() {
+    async function loadAccount() {
       if (!window.ethereum) {
         alert("MetaMask chưa được cài");
         return;
       }
+
       const accounts = await window.ethereum.request({
         method: "eth_requestAccounts"
       });
+
       setAccount(accounts[0]);
     }
-    load();
+
+    loadAccount();
   }, []);
-  
-  
-  
-  // Load tokens doctor can write to
+
+  // =============================
+  // LOAD TOKENS DOCTOR CAN WRITE
+  // =============================
   async function loadTokens() {
-    if (!account) return console.log("No account provided");
+    if (!account) return;
+
     try {
-      console.log("Loading tokens for doctor:", account);
-      const res = await fetch(`http://localhost:8000/doctor/${account}/tokens`);
+      const res = await fetch(
+        `http://localhost:8000/doctor/${account}/tokens`
+      );
       const data = await res.json();
-      console.log("Tokens loaded:", data.tokens);
       setTokens(data.tokens || []);
-    } catch (e) {
-      console.error("Error loading tokens:", e);
-      alert("Error loading tokens");
+    } catch (err) {
+      console.error(err);
+      alert("Không load được token");
     }
   }
 
@@ -47,107 +56,139 @@ export default function DoctorDashboard({ }) {
     if (account) loadTokens();
   }, [account]);
 
-  // Upload file → backend (Pinata)
+  // =============================
+  // UPLOAD FILE → IPFS (NO CRYPTO)
+  // =============================
   async function handleUploadToIPFS() {
-    if (!uploadFile) return alert("Chọn file trước");
+    if (!uploadFile) {
+      alert("Chọn file trước");
+      return;
+    }
+
     setLoading(true);
-    console.log("Uploading file:", uploadFile.name);
-
-    const fd = new FormData();
-    fd.append("file", uploadFile);
-
     try {
+      const fd = new FormData();
+      fd.append("file", uploadFile);
+
       const res = await fetch("http://localhost:8000/ipfs/upload", {
         method: "POST",
         body: fd
       });
+
+      if (!res.ok) throw new Error("Upload failed");
+
       const data = await res.json();
       setCid(data.cid);
-      console.log("File uploaded, CID:", data.cid);
-      alert("Uploaded: " + data.cid);
+
+      alert("Upload thành công\nCID: " + data.cid);
     } catch (err) {
-      console.error("Upload error:", err);
-      alert("Upload error: " + err.message);
+      console.error(err);
+      alert("Upload IPFS thất bại");
     } finally {
       setLoading(false);
     }
   }
 
-  // Add entry → smart contract
+  // =============================
+  // ADD ENTRY TO BLOCKCHAIN
+  // =============================
   async function addEntry() {
-    if (!selectedToken || !cid) return alert("Select token & provide CID first");
+    if (!selectedToken || !cid) {
+      alert("Chọn token và có CID");
+      return;
+    }
+
     setLoading(true);
-    setTxStatus("Submitting...");
-    console.log("Adding entry to token:", selectedToken.tokenId, "CID:", cid);
+    setTxStatus("Submitting transaction...");
 
     try {
       const { contract } = await loadContract();
-      console.log("Contract loaded:", contract.address);
 
-      const tx = await contract.add_entry(selectedToken.tokenId, cid);
+      const tx = await contract.add_entry(
+        selectedToken.tokenId,
+        cid
+      );
+
       setTxHash(tx.hash);
       setTxStatus("Pending...");
-      console.log("Transaction sent:", tx.hash);
 
       const receipt = await tx.wait();
       setTxStatus(`Mined at block ${receipt.blockNumber}`);
-      console.log("Transaction mined:", receipt);
-      alert("Entry added to blockchain!");
+
+      alert("Add entry thành công");
+      setCid("");
+      setUploadFile(null);
     } catch (err) {
-      console.error("Transaction error:", err);
-      alert("Transaction error: " + (err.message || err.info?.error?.message));
+      console.error(err);
+      alert(
+        "Transaction error: " +
+          (err.info?.error?.message || err.message)
+      );
       setTxStatus("");
     } finally {
       setLoading(false);
     }
   }
 
+  // =============================
+  // UI
+  // =============================
   return (
-    <div style={{ padding: 40 }}>
+    <div style={{ padding: 40, maxWidth: 800 }}>
       <h2>Doctor Dashboard</h2>
-      <p>Connected: {account}</p>
+      <p><b>Connected:</b> {account}</p>
 
-      <h3>Tokens You Can Write To ({tokens.length})</h3>
+      <hr />
+
+      <h3>Tokens You Can Write ({tokens.length})</h3>
+      {tokens.length === 0 && <p>Không có token nào</p>}
+
       <ul>
         {tokens.map(t => (
-          <li key={t.tokenId}>
+          <li key={t.tokenId} style={{ marginBottom: 8 }}>
             <button onClick={() => setSelectedToken(t)}>
-              Token {t.tokenId} - CID: {t.cid}
+              Token #{t.tokenId}
             </button>
+            <span style={{ marginLeft: 10 }}>
+              Patient: {t.patient}
+            </span>
           </li>
         ))}
       </ul>
 
       {selectedToken && (
-        <div style={{ marginTop: 20 }}>
-          <h4>Selected Token: {selectedToken.tokenId}</h4>
+        <div style={{ marginTop: 30 }}>
+          <h4>Selected Token: #{selectedToken.tokenId}</h4>
 
-          <div>
-            <input type="file" onChange={(e) => setUploadFile(e.target.files[0])} />
+          <div style={{ marginTop: 10 }}>
+            <input
+              type="file"
+              onChange={(e) => setUploadFile(e.target.files[0])}
+            />
             <button
               onClick={handleUploadToIPFS}
-              disabled={loading || !uploadFile}
+              disabled={loading}
               style={{ marginLeft: 10 }}
             >
               Upload to IPFS
             </button>
           </div>
 
-          <div style={{ marginTop: 10 }}>
-            <label>CID (or edit manually):</label>
+          <div style={{ marginTop: 15 }}>
+            <label>CID</label>
             <input
               type="text"
               value={cid}
               onChange={(e) => setCid(e.target.value)}
-              placeholder="CID from Pinata"
-              style={{ width: "100%", padding: 4 }}
+              placeholder="CID từ IPFS"
+              style={{ width: "100%", padding: 6 }}
             />
           </div>
 
           <button
             onClick={addEntry}
             disabled={loading || !cid}
-            style={{ marginTop: 10 }}
+            style={{ marginTop: 15 }}
           >
             Add Entry to Blockchain
           </button>
@@ -155,9 +196,9 @@ export default function DoctorDashboard({ }) {
       )}
 
       {txHash && (
-        <div style={{ marginTop: 20 }}>
-          <p>TX Hash: {txHash}</p>
-          <p>Status: {txStatus}</p>
+        <div style={{ marginTop: 30 }}>
+          <p><b>TX Hash:</b> {txHash}</p>
+          <p><b>Status:</b> {txStatus}</p>
         </div>
       )}
     </div>
