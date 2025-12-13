@@ -17,12 +17,6 @@ export default function HospitalDashboard() {
     return /^0x[a-fA-F0-9]{40}$/.test(address.trim());
   }
 
-  async function getSigner() {
-    if (!window.ethereum) throw new Error("MetaMask not installed");
-    const provider = new BrowserProvider(window.ethereum);
-    return await provider.getSigner();
-  }
-
   // Upload file to backend → Pinata
   async function handleUploadToIPFS() {
     if (!uploadFile) return alert("Chọn file trước");
@@ -46,6 +40,7 @@ export default function HospitalDashboard() {
 
   // ----------------- SMART CONTRACT CALLS -----------------
 
+  // ✅ Hospital chỉ được mint record
   async function mintRecord() {
     if (!tokenId || !patientAddr || !cid)
       return alert("tokenId, patient, cid required");
@@ -66,23 +61,6 @@ export default function HospitalDashboard() {
     } catch (err) {
       console.error(err);
       alert("Mint error: " + (err.info?.error?.message || err.message));
-    }
-  }
-
-  async function addEntry() {
-    if (!tokenId || !cid)
-      return alert("tokenId + cid required");
-
-    try {
-      const { contract } = await loadContract();
-      const txResp = await contract.add_entry(Number(tokenId), cid);
-      setTx(txResp.hash);
-      alert("AddEntry sent: " + txResp.hash);
-      await txResp.wait();
-      alert("Entry added!");
-    } catch (err) {
-      console.error(err);
-      alert("Add entry error: " + (err.info?.error?.message || err.message));
     }
   }
 
@@ -175,63 +153,84 @@ export default function HospitalDashboard() {
       {/* File Upload */}
       <section className="mb-6 border p-4 rounded">
         <h3 className="font-semibold mb-2">Upload file to IPFS</h3>
-        <input type="file" onChange={(e) => setUploadFile(e.target.files?.[0])} />
-        <button className="ml-2 mt-2 px-3 py-1 bg-sky-600 text-white rounded"
-                onClick={handleUploadToIPFS}>
+        <input
+          type="file"
+          onChange={(e) => setUploadFile(e.target.files?.[0])}
+        />
+        <button
+          className="ml-2 mt-2 px-3 py-1 bg-sky-600 text-white rounded"
+          onClick={handleUploadToIPFS}
+        >
           Upload
         </button>
+
         <div className="mt-2">
           <label className="block">CID</label>
-          <input className="border p-2 w-full"
-                 value={cid}
-                 onChange={(e) => setCid(e.target.value)}
-                 placeholder="CID from Pinata" />
+          <input
+            className="border p-2 w-full"
+            value={cid}
+            onChange={(e) => setCid(e.target.value)}
+            placeholder="CID from Pinata"
+          />
         </div>
       </section>
 
-      {/* Mint / Add Entry */}
+      {/* Mint Record */}
       <section className="mb-6 border p-4 rounded">
-        <h3 className="font-semibold mb-2">Mint / Add Entry</h3>
-        <input className="border p-2 w-full mb-2"
-               value={tokenId}
-               onChange={(e) => setTokenId(e.target.value)}
-               placeholder="Token ID" />
-        <input className="border p-2 w-full mb-2"
-               value={patientAddr}
-               onChange={(e) => setPatientAddr(e.target.value)}
-               placeholder="Patient address (0x...)" />
-        <input className="border p-2 w-full mb-2"
-               value={cid}
-               onChange={(e) => setCid(e.target.value)}
-               placeholder="CID" />
+        <h3 className="font-semibold mb-2">Mint Record</h3>
 
-        <div className="flex gap-2">
-          <button className="px-4 py-2 bg-green-600 text-white rounded"
-                  onClick={mintRecord}>
-            Mint Record
-          </button>
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded"
-                  onClick={addEntry}>
-            Add Entry
-          </button>
-        </div>
+        <input
+          className="border p-2 w-full mb-2"
+          value={tokenId}
+          onChange={(e) => setTokenId(e.target.value)}
+          placeholder="Token ID"
+        />
+
+        <input
+          className="border p-2 w-full mb-2"
+          value={patientAddr}
+          onChange={(e) => setPatientAddr(e.target.value)}
+          placeholder="Patient address (0x...)"
+        />
+
+        <input
+          className="border p-2 w-full mb-2"
+          value={cid}
+          onChange={(e) => setCid(e.target.value)}
+          placeholder="CID"
+        />
+
+        <button
+          className="px-4 py-2 bg-green-600 text-white rounded"
+          onClick={mintRecord}
+        >
+          Mint Record
+        </button>
       </section>
 
       {/* Doctor Management */}
       <section className="mb-6 border p-4 rounded">
         <h3 className="font-semibold mb-2">Doctor Management</h3>
-        <input className="border p-2 w-full mb-2"
-               value={doctorAddr}
-               onChange={(e) => setDoctorAddr(e.target.value)}
-               placeholder="Doctor address (0x...)" />
+
+        <input
+          className="border p-2 w-full mb-2"
+          value={doctorAddr}
+          onChange={(e) => setDoctorAddr(e.target.value)}
+          placeholder="Doctor address (0x...)"
+        />
 
         <div className="flex gap-2">
-          <button className="px-4 py-2 bg-amber-600 text-white rounded"
-                  onClick={registerDoctor}>
+          <button
+            className="px-4 py-2 bg-amber-600 text-white rounded"
+            onClick={registerDoctor}
+          >
             Register Doctor
           </button>
-          <button className="px-4 py-2 bg-red-600 text-white rounded"
-                  onClick={unregisterDoctor}>
+
+          <button
+            className="px-4 py-2 bg-red-600 text-white rounded"
+            onClick={unregisterDoctor}
+          >
             Unregister Doctor
           </button>
         </div>
@@ -241,24 +240,32 @@ export default function HospitalDashboard() {
       <section className="mb-6 border p-4 rounded">
         <h3 className="font-semibold mb-2">Grant / Revoke Doctor Write</h3>
 
-        <input className="border p-2 w-full mb-2"
-               value={grantTokenId}
-               onChange={(e) => setGrantTokenId(e.target.value)}
-               placeholder="Token ID" />
+        <input
+          className="border p-2 w-full mb-2"
+          value={grantTokenId}
+          onChange={(e) => setGrantTokenId(e.target.value)}
+          placeholder="Token ID"
+        />
 
-        <input className="border p-2 w-full mb-2"
-               value={doctorAddr}
-               onChange={(e) => setDoctorAddr(e.target.value)}
-               placeholder="Doctor address (0x...)" />
+        <input
+          className="border p-2 w-full mb-2"
+          value={doctorAddr}
+          onChange={(e) => setDoctorAddr(e.target.value)}
+          placeholder="Doctor address (0x...)"
+        />
 
         <div className="flex gap-2">
-          <button className="px-4 py-2 bg-amber-600 text-white rounded"
-                  onClick={grantDoctor}>
+          <button
+            className="px-4 py-2 bg-amber-600 text-white rounded"
+            onClick={grantDoctor}
+          >
             Grant Write
           </button>
 
-          <button className="px-4 py-2 bg-red-600 text-white rounded"
-                  onClick={revokeDoctor}>
+          <button
+            className="px-4 py-2 bg-red-600 text-white rounded"
+            onClick={revokeDoctor}
+          >
             Revoke Write
           </button>
         </div>

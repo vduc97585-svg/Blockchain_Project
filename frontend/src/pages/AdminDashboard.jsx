@@ -43,17 +43,21 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       setTxStatus("Submitting...");
-      const res = await axios.post("http://localhost:8000/hospital/unregister", {
-        hospital_address: hospital
-      });
-
+  
+      const res = await axios.post(
+        "http://localhost:8000/hospital/unregister",
+        { hospital }
+      );
+  
       const hash = res.data.tx_hash;
       setTxHash(hash);
       setTxStatus("Pending...");
-
+  
       const interval = setInterval(async () => {
         try {
-          const statusRes = await axios.get(`http://localhost:8000/hospital/tx_status/${hash}`);
+          const statusRes = await axios.get(
+            `http://localhost:8000/hospital/tx_status/${hash}`
+          );
           if (statusRes.data.status === "mined") {
             setTxStatus(`Mined at block ${statusRes.data.blockNumber}`);
             clearInterval(interval);
@@ -63,7 +67,7 @@ export default function AdminDashboard() {
           console.error("Check tx status error:", err);
         }
       }, 3000);
-
+  
     } catch (error) {
       console.error(error);
       alert("Error: " + (error.response?.data?.detail || error.message));
@@ -71,6 +75,10 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   }
+  
+  
+  
+  
 
   return (
     <div style={{ padding: 40 }}>

@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { loadContract } from "../web3";
 
-export default function DoctorDashboard({ account }) {
+export default function DoctorDashboard({ }) {
   const [tokens, setTokens] = useState([]);
   const [selectedToken, setSelectedToken] = useState(null);
   const [uploadFile, setUploadFile] = useState(null);
@@ -10,7 +10,24 @@ export default function DoctorDashboard({ account }) {
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState("");
   const [txStatus, setTxStatus] = useState("");
+  const [account, setAccount] = useState("");
 
+  useEffect(() => {
+    async function load() {
+      if (!window.ethereum) {
+        alert("MetaMask chưa được cài");
+        return;
+      }
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts"
+      });
+      setAccount(accounts[0]);
+    }
+    load();
+  }, []);
+  
+  
+  
   // Load tokens doctor can write to
   async function loadTokens() {
     if (!account) return console.log("No account provided");

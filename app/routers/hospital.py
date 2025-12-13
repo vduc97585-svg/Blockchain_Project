@@ -47,27 +47,27 @@ def register_hospital(body: HospitalRegister):
 
 
 class UnregisterHospitalIn(BaseModel):
-    hospital_address: str
-    signer_private_key: str
+    hospital: str
 
 @router.post("/unregister")
-def unregister_hospital(data: UnregisterHospitalIn):
+def unregister_hospital(body: UnregisterHospitalIn):
     try:
-        account = web3.eth.account.from_key(data.signer_private_key)
+        hospital_addr = web3.to_checksum_address(body.hospital)
 
-        # convert address to checksum
-        hospital_addr = web3.to_checksum_address(data.hospital_address)
+        # lấy nonce bao gồm pending tx
+        nonce = web3.eth.get_transaction_count(ACCOUNT_ADDRESS, "pending")
 
         tx = contract.functions.unregister_hospital(
             hospital_addr
         ).build_transaction({
-            "from": account.address,
-            "nonce": web3.eth.get_transaction_count(account.address),
+            "from": ACCOUNT_ADDRESS,
+            "nonce": nonce,
             "gas": 300000,
             "gasPrice": web3.eth.gas_price
         })
 
-        signed_tx = web3.eth.account.sign_transaction(tx, data.signer_private_key)
+        # ký bằng ADMIN PRIVATE KEY (GIỐNG register)
+        signed_tx = web3.eth.account.sign_transaction(tx, PRIVATE_KEY)
         tx_hash = web3.eth.send_raw_transaction(signed_tx.raw_transaction)
 
         return {

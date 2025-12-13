@@ -435,19 +435,14 @@ def exists_token(tokenId: uint256) -> bool:
 
 @view
 @external
-def getRole(tokenId: uint256, addr: address) -> String[32]:
+def getRole(addr: address) -> String[32]:
     if addr == self.owner:
         return "contract_owner"
     if self.hospitals[addr]:
         return "hospital"
     if self.doctor_hospital[addr] != ZERO_ADDR:
         return "doctor"
-    if self.owners[tokenId] == addr:
+    # check if patient owns ANY token
+    if self.balances[addr] > 0:
         return "patient"
-    if self.stewards[tokenId] == addr:
-        return "steward"
-    if self.external_write_grants[tokenId][addr]:
-        return "external_write"
-    if self.internal_write_permissions[tokenId][addr]:
-        return "internal_write"
     return "none"

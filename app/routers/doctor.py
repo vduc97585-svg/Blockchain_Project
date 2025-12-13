@@ -45,3 +45,29 @@ def unregister_doctor(data: DoctorRegisterIn):
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+@router.get("/{doctor}/tokens")
+def get_doctor_tokens(doctor: str):
+    try:
+        doctor = Web3.to_checksum_address(doctor)
+
+        tokens = []
+        token_counter = contract.functions.token_counter().call()
+
+        for token_id in range(1, token_counter + 1):
+            exists = contract.functions.exists_token(token_id).call()
+            if not exists:
+                continue
+
+            can_write = contract.functions.can_write(token_id, doctor).call()
+            if can_write:
+                cid = contract.functions.tokenURI(token_id).call()
+                tokens.append({
+                    "tokenId": token_id,
+                    "cid": cid
+                })
+
+        return {"tokens": tokens}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
