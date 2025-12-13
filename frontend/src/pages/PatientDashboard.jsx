@@ -6,6 +6,7 @@ import CONTRACT_ABI from "../contract/abi.json";
 import { CONTRACT_ADDRESS } from "../web3";
 
 const BACKEND_BASE = "http://localhost:8000";
+const IPFS_GATEWAY = "http://127.0.0.1:8080/ipfs"; // ✅ LOCAL IPFS NODE
 
 export default function PatientDashboard() {
   const [account, setAccount] = useState("");
@@ -17,7 +18,7 @@ export default function PatientDashboard() {
   const [txHash, setTxHash] = useState("");
   const [txStatus, setTxStatus] = useState("");
 
-  // ✅ Lấy account từ MetaMask (GIỐNG Hospital)
+  // 🔐 Connect MetaMask (GIỐNG Hospital)
   useEffect(() => {
     async function init() {
       if (!window.ethereum) {
@@ -32,7 +33,7 @@ export default function PatientDashboard() {
     init();
   }, []);
 
-  // Load patient tokens
+  // 📦 Load patient tokens
   async function loadTokens(addr) {
     try {
       const res = await axios.get(
@@ -41,11 +42,11 @@ export default function PatientDashboard() {
       setTokens(res.data.records);
     } catch (e) {
       console.error(e);
-      alert("Error loading tokens: " + (e.response?.data?.detail || e.message));
+      alert("Error loading tokens");
     }
   }
 
-  // Load entries
+  // 📄 Load entries
   async function loadEntries(tokenId, cid) {
     setSelectedToken({ tokenId, cid });
     try {
@@ -55,11 +56,11 @@ export default function PatientDashboard() {
       setEntries(res.data.entries);
     } catch (e) {
       console.error(e);
-      alert("Error loading entries: " + (e.response?.data?.detail || e.message));
+      alert("Error loading entries");
     }
   }
 
-  // Execute tx via MetaMask
+  // 🦊 Execute transaction
   async function executeTx(callback) {
     try {
       setLoading(true);
@@ -76,22 +77,21 @@ export default function PatientDashboard() {
       const tx = await callback(contract);
       setTxHash(tx.hash);
       setTxStatus("Pending...");
-
       await tx.wait();
+
       setTxStatus("Mined");
       setLoading(false);
     } catch (e) {
       console.error(e);
-      alert("Transaction error: " + e.message);
-      setTxStatus("");
+      alert("Transaction error");
       setLoading(false);
     }
   }
 
-  // ---- Actions ----
+  // 🏥 Delegate / Revoke hospital
   const delegateHospital = () => {
     if (!selectedToken || !hospitalAddr)
-      return alert("Select token & hospital");
+      return alert("Select token & hospital address");
     executeTx((c) =>
       c.delegate_hospital(selectedToken.tokenId, hospitalAddr)
     );
@@ -99,28 +99,31 @@ export default function PatientDashboard() {
 
   const revokeHospital = () => {
     if (!selectedToken || !hospitalAddr)
-      return alert("Select token & hospital");
+      return alert("Select token & hospital address");
     executeTx((c) =>
       c.revoke_hospital_delegate(selectedToken.tokenId, hospitalAddr)
     );
   };
 
-  // 🔄 Load tokens khi đã có account
+  // 🔁 Auto load tokens
   useEffect(() => {
     if (account) loadTokens(account);
   }, [account]);
 
   return (
-    <div style={{ padding: 40 }}>
-      <h2>Patient Dashboard</h2>
-      <p>Connected as: {account}</p>
+    <div className="p-6">
+      <h2 className="text-xl font-bold mb-2">Patient Dashboard</h2>
+      <p className="mb-4">Connected as: {account}</p>
 
-      <h3>Your Tokens ({tokens.length})</h3>
-      <ul>
+      <h3 className="font-semibold">Your Records ({tokens.length})</h3>
+      <ul className="mb-4">
         {tokens.map((t) => (
           <li key={t.tokenId}>
-            <button onClick={() => loadEntries(t.tokenId, t.cid)}>
-              Token {t.tokenId} – CID: {t.cid}
+            <button
+              className="text-blue-600 underline"
+              onClick={() => loadEntries(t.tokenId, t.cid)}
+            >
+              Token #{t.tokenId}
             </button>
           </li>
         ))}
@@ -128,60 +131,74 @@ export default function PatientDashboard() {
 
       {selectedToken && (
         <>
-          <div style={{ marginBottom: 20 }}>
-            <h4>Record File</h4>
+          <section className="mb-6">
+            <h4 className="font-semibold">Medical Record File</h4>
             <a
-              href={`https://ipfs.io/ipfs/${selectedToken.cid}`}
+              href={`${IPFS_GATEWAY}/${selectedToken.cid}`}
               target="_blank"
               rel="noreferrer"
+              className="text-green-600 underline"
             >
-              Download file
+              Download from local IPFS
             </a>
-          </div>
+          </section>
 
-          <h3>Entries</h3>
-          {entries.length === 0 && <p>No entries yet.</p>}
-          <ul>
-            {entries.map((e, idx) => (
-              <li key={idx}>
-                <p>Author: {e.author}</p>
-                <p>
-                  CID:{" "}
-                  <a
-                    href={`https://ipfs.io/ipfs/${e.cid}`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    {e.cid}
-                  </a>
-                </p>
-                <p>
-                  Time: {new Date(e.timestamp * 1000).toLocaleString()}
-                </p>
-              </li>
-            ))}
-          </ul>
+          <section className="mb-6">
+            <h3 className="font-semibold">Entries</h3>
+            {entries.length === 0 && <p>No entries yet.</p>}
+            <ul>
+              {entries.map((e, idx) => (
+                <li key={idx} className="border p-2 mb-2 rounded">
+                  <p>Author: {e.author}</p>
+                  <p>
+                    CID:{" "}
+                    <a
+                      href={`${IPFS_GATEWAY}/${e.cid}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 underline"
+                    >
+                      {e.cid}
+                    </a>
+                  </p>
+                  <p>
+                    Time:{" "}
+                    {new Date(e.timestamp * 1000).toLocaleString()}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
 
-          <div style={{ marginTop: 20 }}>
-            <h4>Delegate / Revoke Hospital</h4>
+          <section>
+            <h4 className="font-semibold">Delegate / Revoke Hospital</h4>
             <input
-              placeholder="Hospital address"
+              className="border p-2 mr-2"
+              placeholder="Hospital address (0x...)"
               value={hospitalAddr}
               onChange={(e) => setHospitalAddr(e.target.value)}
             />
-            <button onClick={delegateHospital} disabled={loading}>
+            <button
+              className="px-3 py-1 bg-amber-600 text-white mr-2"
+              onClick={delegateHospital}
+              disabled={loading}
+            >
               Delegate
             </button>
-            <button onClick={revokeHospital} disabled={loading}>
+            <button
+              className="px-3 py-1 bg-red-600 text-white"
+              onClick={revokeHospital}
+              disabled={loading}
+            >
               Revoke
             </button>
-          </div>
+          </section>
         </>
       )}
 
       {txHash && (
-        <div style={{ marginTop: 20 }}>
-          <p>TX Hash: {txHash}</p>
+        <div className="mt-4">
+          <p>TX: {txHash}</p>
           <p>Status: {txStatus}</p>
         </div>
       )}

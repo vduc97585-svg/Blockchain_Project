@@ -17,26 +17,31 @@ export default function HospitalDashboard() {
     return /^0x[a-fA-F0-9]{40}$/.test(address.trim());
   }
 
-  // Upload file to backend → Pinata
   async function handleUploadToIPFS() {
     if (!uploadFile) return alert("Chọn file trước");
-
-    const fd = new FormData();
-    fd.append("file", uploadFile);
-
+  
     try {
+      const fd = new FormData();
+      fd.append("file", uploadFile);
+  
       const res = await fetch("http://localhost:8000/ipfs/upload", {
         method: "POST",
         body: fd
       });
+  
+      if (!res.ok) throw new Error("Upload failed");
+  
       const data = await res.json();
+      console.log("IPFS response:", data);
+  
       setCid(data.cid);
-      alert("Uploaded: " + data.cid);
+      alert("Uploaded to IPFS\nCID: " + data.cid);
     } catch (err) {
       console.error(err);
-      alert("Upload error: " + err.message);
+      alert("IPFS upload error: " + err.message);
     }
   }
+  
 
   // ----------------- SMART CONTRACT CALLS -----------------
 
@@ -150,30 +155,25 @@ export default function HospitalDashboard() {
     <div className="p-6">
       <h2 className="text-xl font-bold mb-3">Hospital Dashboard</h2>
 
-      {/* File Upload */}
-      <section className="mb-6 border p-4 rounded">
-        <h3 className="font-semibold mb-2">Upload file to IPFS</h3>
-        <input
-          type="file"
-          onChange={(e) => setUploadFile(e.target.files?.[0])}
-        />
+      {/* IPFS Upload */}
+      <section className="border p-4 mb-6 rounded">
+        <h3 className="font-semibold mb-2">Upload Medical File (IPFS)</h3>
+        <input type="file" onChange={(e) => setUploadFile(e.target.files[0])} />
         <button
-          className="ml-2 mt-2 px-3 py-1 bg-sky-600 text-white rounded"
+          className="ml-2 px-4 py-1 bg-sky-600 text-white rounded"
           onClick={handleUploadToIPFS}
         >
           Upload
         </button>
 
-        <div className="mt-2">
-          <label className="block">CID</label>
-          <input
-            className="border p-2 w-full"
-            value={cid}
-            onChange={(e) => setCid(e.target.value)}
-            placeholder="CID from Pinata"
-          />
-        </div>
+        <input
+          className="border p-2 w-full mt-3"
+          placeholder="CID"
+          value={cid}
+          onChange={(e) => setCid(e.target.value)}
+        />
       </section>
+
 
       {/* Mint Record */}
       <section className="mb-6 border p-4 rounded">

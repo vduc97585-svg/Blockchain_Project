@@ -8,4 +8,4 @@ npm - v
 npm install
 npm install axios ethers react-router-dom
 npm run dev 
-- Mở trang ghttp://localhost:5173/
+- Mở trang http://localhost:5173/
