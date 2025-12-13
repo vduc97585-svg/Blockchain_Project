@@ -1,25 +1,47 @@
 from fastapi import APIRouter, HTTPException
-from app.models.ehr_models import DoctorRegisterIn
+from pydantic import BaseModel
+import os
 from app.services.blockchain import contract, send_tx, Web3
 
+OWNER_PRIVATE_KEY = os.getenv("PRIVATE_KEY")
 router = APIRouter(prefix="/doctor", tags=["doctor"])
 
+# --- Input model ---
+class DoctorRegisterIn(BaseModel):
+    doctor_address: str
 
+# --- Register doctor ---
 @router.post("/register")
 def register_doctor(data: DoctorRegisterIn):
     try:
-        doctor = Web3.to_checksum_address(data.doctor_address)
-        tx = send_tx(contract.functions.register_doctor(doctor), data.signer_private_key)
-        return {"status": "submitted", "tx_hash": tx}
+        # Validate & checksum address
+        try:
+            doctor = Web3.to_checksum_address(data.doctor_address.strip())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid Ethereum address")
+
+        # Send tx with backend owner's private key
+        tx_hash = send_tx(contract.functions.register_doctor(doctor), OWNER_PRIVATE_KEY)
+        return {"status": "submitted", "tx_hash": tx_hash}
+
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
-
+# --- Unregister doctor ---
 @router.post("/unregister")
 def unregister_doctor(data: DoctorRegisterIn):
     try:
-        doctor = Web3.to_checksum_address(data.doctor_address)
-        tx = send_tx(contract.functions.unregister_doctor(doctor), data.signer_private_key)
-        return {"status": "submitted", "tx_hash": tx}
+        try:
+            doctor = Web3.to_checksum_address(data.doctor_address.strip())
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid Ethereum address")
+
+        tx_hash = send_tx(contract.functions.unregister_doctor(doctor), OWNER_PRIVATE_KEY)
+        return {"status": "submitted", "tx_hash": tx_hash}
+
+    except HTTPException as e:
+        raise e
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))

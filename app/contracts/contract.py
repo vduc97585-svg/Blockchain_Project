@@ -45,9 +45,7 @@ except:
 
 # --- Load ABI ---
 with open("abi/EHRRegistry.json", "r") as f:
-    abi_data = json.load(f)
-    ABI = abi_data["abi"]
-
+    ABI = json.load(f)
 # --- Create contract instance ---
 contract = web3.eth.contract(
     address=checksum_address,

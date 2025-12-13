@@ -35,8 +35,7 @@ if not ABI_PATH.exists():
     raise FileNotFoundError(f"ABI file not found at {ABI_PATH}")
 
 with open(ABI_PATH, "r") as f:
-    raw = json.load(f)
-ABI = raw["abi"]
+        ABI = json.load(f)
 
 # Contract
 contract = web3.eth.contract(

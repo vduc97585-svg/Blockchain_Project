@@ -7,18 +7,27 @@ router = APIRouter(prefix="/hospital", tags=["hospital"])
 class HospitalRegister(BaseModel):
     hospital: str   # địa chỉ hospital muốn đăng ký
 
+@router.get("/tx_status/{tx_hash}")
+def tx_status(tx_hash: str):
+    receipt = web3.eth.get_transaction_receipt(tx_hash)
+    if receipt is None:
+        return {"status": "pending"}
+    return {"status": "mined", "blockNumber": receipt.blockNumber}
 
 @router.post("/register")
 def register_hospital(body: HospitalRegister):
     try:
         hospital_addr = web3.to_checksum_address(body.hospital)
 
-        # build transaction
+        # lấy nonce bao gồm cả tx đang pending
+        nonce = web3.eth.get_transaction_count(ACCOUNT_ADDRESS, 'pending')
+
+        # build tx với gasPrice hiện tại của mạng
         tx = contract.functions.register_hospital(hospital_addr).build_transaction({
-            "from": ACCOUNT_ADDRESS,   # phải là owner !!!
-            "nonce": web3.eth.get_transaction_count(ACCOUNT_ADDRESS),
+            "from": ACCOUNT_ADDRESS,
+            "nonce": nonce,
             "gas": 300000,
-            "gasPrice": web3.to_wei('2', 'gwei'),
+            "gasPrice": web3.eth.gas_price,  # auto đủ cao
         })
 
         # sign
@@ -35,6 +44,7 @@ def register_hospital(body: HospitalRegister):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
 
 class UnregisterHospitalIn(BaseModel):
     hospital_address: str
