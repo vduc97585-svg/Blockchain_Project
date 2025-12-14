@@ -1,0 +1,3 @@
+- Tải các phần cần thiết trong file requirements.txt
+- Chạy môi trường .\.venv\Scripts\Activate
+- Đứng ở thư mục Blockchain_project chạy lệnh: uvicorn app.main:app --reload
