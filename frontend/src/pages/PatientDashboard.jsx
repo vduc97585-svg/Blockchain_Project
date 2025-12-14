@@ -71,49 +71,36 @@ export default function PatientDashboard() {
   // =============================
   // DOWNLOAD FILE (SERVER DECRYPT)
   // =============================
-  async function downloadFile(cid) {
+  async function downloadFile(cid, filename) {
     try {
       const res = await fetch(`${BACKEND}/ipfs/cat/${cid}`);
       const blob = await res.blob();
-
+      const mime = res.headers.get("content-type") || "application/octet-stream";
       const url = URL.createObjectURL(blob);
-      window.open(url);
+  
+      if (mime.startsWith("image/") || mime === "application/pdf") {
+        // mở trực tiếp trong tab mới
+        const newTab = window.open();
+        if (!newTab) return alert("Pop-up bị chặn");
+        newTab.document.body.innerHTML = `
+          <iframe src="${url}" 
+                  style="width:100%;height:100vh;" 
+                  frameborder="0"></iframe>`;
+      } else {
+        // tải file về
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename || "file";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }
     } catch (e) {
       console.error(e);
       alert("Download thất bại");
     }
   }
-
-  // =============================
-  // EXECUTE TX
-  // =============================
-  async function executeTx(cb) {
-    try {
-      setLoading(true);
-      setTxStatus("Submitting...");
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const signer = await provider.getSigner();
-      const contract = new ethers.Contract(
-        CONTRACT_ADDRESS,
-        CONTRACT_ABI,
-        signer
-      );
-
-      const tx = await cb(contract);
-      setTxHash(tx.hash);
-      setTxStatus("Pending...");
-      await tx.wait();
-
-      setTxStatus("Mined");
-    } catch (e) {
-      console.error(e);
-      alert("Transaction lỗi");
-    } finally {
-      setLoading(false);
-    }
-  }
-
+  
   // =============================
   // DELEGATE / REVOKE HOSPITAL
   // =============================

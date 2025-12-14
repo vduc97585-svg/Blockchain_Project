@@ -1,6 +1,9 @@
 from fastapi import APIRouter, UploadFile, File, Response
 import requests
 
+from fastapi.responses import StreamingResponse
+import io
+
 from app.crypto import encrypt_bytes, decrypt_bytes
 
 router = APIRouter(prefix="/ipfs", tags=["IPFS"])
@@ -44,16 +47,17 @@ def get_from_ipfs(cid: str):
     if r.status_code != 200:
         return Response(status_code=404)
 
-    decrypted = decrypt_bytes(r.content)
+    try:
+        decrypted = decrypt_bytes(r.content)
+    except Exception as e:
+        return Response(content=r.content, media_type="application/octet-stream")
 
     meta = FILE_META.get(cid, {})
     filename = meta.get("filename", "file")
     mime = meta.get("mime", "application/octet-stream")
 
-    return Response(
-        content=decrypted,
+    return StreamingResponse(
+        io.BytesIO(decrypted),
         media_type=mime,
-        headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
-        }
+        headers={"Content-Disposition": f'inline; filename="{filename}"'}
     )
