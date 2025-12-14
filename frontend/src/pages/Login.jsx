@@ -78,48 +78,77 @@ export default function Login({ setRole }) {
   }
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.card}>
-        <h2 style={{ marginBottom: 20 }}>Login Blockchain</h2>
-
-        <button
-          onClick={handleLogin}
-          disabled={status === "loading"}
-          style={styles.button}
-        >
-          {status === "loading" ? "Đang kết nối..." : "Connect MetaMask"}
-        </button>
-
-        {address && (
-          <div style={styles.info}>
-            <p><b>Ví:</b> {address}</p>
-            <p><b>Role:</b> {role || "Đang xác định..."}</p>
-          </div>
-        )}
-
-        {message && (
-          <p
-            style={{
-              marginTop: 15,
-              color: status === "error" ? "red" : "green",
-            }}
-          >
-            {message}
-          </p>
-        )}
-
-        {status === "connected" && role && (
-          <button onClick={enterSystem} style={styles.enterButton}>
-            Vào hệ thống
-          </button>
-        )}
-      </div>
+  <div style={styles.wrapper}>
+    {/* ===== TIÊU ĐỀ ===== */}
+    <div style={styles.header}>
+      <h1 style={styles.title}>HỆ THỐNG Y TẾ</h1>
+      <h1 style={styles.subTitle}>HỒ SƠ BỆNH ÁN ĐIỆN TỬ</h1>
     </div>
-  );
+
+    <div style={styles.card}>
+      <h2 style={{ marginBottom: 20 }}>Đăng nhập</h2>
+
+      <button
+        onClick={handleLogin}
+        disabled={status === "loading"}
+        style={styles.button}
+      >
+        {status === "loading" ? "Đang kết nối..." : "Connect MetaMask"}
+      </button>
+
+      {address && (
+        <div style={styles.info}>
+          <p><b>Ví:</b> {address}</p>
+          <p><b>Role:</b> {role || "Đang xác định..."}</p>
+        </div>
+      )}
+
+      {message && (
+        <p
+          style={{
+            marginTop: 15,
+            color: status === "error" ? "red" : "green",
+          }}
+        >
+          {message}
+        </p>
+      )}
+
+      {status === "connected" && role && (
+        <button onClick={enterSystem} style={styles.enterButton}>
+          Vào hệ thống
+        </button>
+      )}
+    </div>
+  </div>
+);
 }
 
 /* ================== STYLE ================== */
 const styles = {
+  header: {
+  position: "absolute",
+  top: 50,
+  textAlign: "center",
+  },
+
+title: {
+  fontSize: 32,
+  fontWeight: "bold",
+  color: "#ffffff",
+  letterSpacing: 2,
+  marginBottom: 6,
+  textShadow: "0 4px 10px rgba(0,0,0,0.3)",
+  },
+
+subTitle: {
+  fontSize: 60,          // TO HƠN "BỘ Y TẾ"
+  fontWeight: "bold",
+  color: "#f1f1f1",
+  letterSpacing: 1.5,
+  textShadow: "0 4px 12px rgba(0,0,0,0.35)",
+  },
+
   wrapper: {
     height: "100vh",
     display: "flex",
