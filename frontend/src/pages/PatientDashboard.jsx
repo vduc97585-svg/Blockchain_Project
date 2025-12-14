@@ -12,6 +12,7 @@ export default function PatientDashboard() {
   const [selectedToken, setSelectedToken] = useState(null);
   const [entries, setEntries] = useState([]);
   const [hospitalAddr, setHospitalAddr] = useState("");
+  const [recordContent, setRecordContent] = useState(null);
 
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState("");
@@ -38,9 +39,7 @@ export default function PatientDashboard() {
   // =============================
   async function loadTokens(addr) {
     try {
-      const res = await axios.get(
-        `${BACKEND}/record/patient/${addr}`
-      );
+      const res = await axios.get(`${BACKEND}/record/patient/${addr}`);
       setTokens(res.data.records || []);
     } catch (e) {
       console.error(e);
@@ -57,10 +56,9 @@ export default function PatientDashboard() {
   // =============================
   async function loadEntries(token) {
     setSelectedToken(token);
+    setRecordContent(null); // reset content khi chọn token mới
     try {
-      const res = await axios.get(
-        `${BACKEND}/record/${token.tokenId}/entries`
-      );
+      const res = await axios.get(`${BACKEND}/record/${token.tokenId}/entries`);
       setEntries(res.data.entries || []);
     } catch (e) {
       console.error(e);
@@ -69,7 +67,26 @@ export default function PatientDashboard() {
   }
 
   // =============================
-  // DOWNLOAD FILE (SERVER DECRYPT)
+  // SHOW FILE TEXT (DECRYPTED)
+  // =============================
+  async function showFileText(cid) {
+    try {
+      const res = await fetch(`${BACKEND}/ipfs/cat/${cid}`);
+      const text = await res.text(); // đọc file decrypted
+      try {
+        const data = JSON.parse(text);
+        setRecordContent(data);
+      } catch {
+        setRecordContent({ raw: text });
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Không load được file");
+    }
+  }
+
+  // =============================
+  // DOWNLOAD FILE (ENTRIES)
   // =============================
   async function downloadFile(cid, filename) {
     try {
@@ -77,17 +94,12 @@ export default function PatientDashboard() {
       const blob = await res.blob();
       const mime = res.headers.get("content-type") || "application/octet-stream";
       const url = URL.createObjectURL(blob);
-  
+
       if (mime.startsWith("image/") || mime === "application/pdf") {
-        // mở trực tiếp trong tab mới
         const newTab = window.open();
         if (!newTab) return alert("Pop-up bị chặn");
-        newTab.document.body.innerHTML = `
-          <iframe src="${url}" 
-                  style="width:100%;height:100vh;" 
-                  frameborder="0"></iframe>`;
+        newTab.document.body.innerHTML = `<iframe src="${url}" style="width:100%;height:100vh;" frameborder="0"></iframe>`;
       } else {
-        // tải file về
         const a = document.createElement("a");
         a.href = url;
         a.download = filename || "file";
@@ -100,7 +112,7 @@ export default function PatientDashboard() {
       alert("Download thất bại");
     }
   }
-  
+
   // =============================
   // DELEGATE / REVOKE HOSPITAL
   // =============================
@@ -109,10 +121,7 @@ export default function PatientDashboard() {
       return alert("Thiếu token hoặc hospital");
 
     executeTx((c) =>
-      c.delegate_hospital(
-        selectedToken.tokenId,
-        hospitalAddr
-      )
+      c.delegate_hospital(selectedToken.tokenId, hospitalAddr)
     );
   }
 
@@ -121,27 +130,19 @@ export default function PatientDashboard() {
       return alert("Thiếu token hoặc hospital");
 
     executeTx((c) =>
-      c.revoke_hospital_delegate(
-        selectedToken.tokenId,
-        hospitalAddr
-      )
+      c.revoke_hospital_delegate(selectedToken.tokenId, hospitalAddr)
     );
   }
 
   // =============================
-  // UI
+  // RENDER
   // =============================
   return (
     <div className="p-6 max-w-2xl">
-      <h2 className="text-xl font-bold mb-2">
-        Patient Dashboard
-      </h2>
+      <h2 className="text-xl font-bold mb-2">Patient Dashboard</h2>
       <p className="mb-4">Connected: {account}</p>
 
-      <h3 className="font-semibold mb-2">
-        Your Records ({tokens.length})
-      </h3>
-
+      <h3 className="font-semibold mb-2">Your Records ({tokens.length})</h3>
       <ul className="mb-4">
         {tokens.map((t) => (
           <li key={t.tokenId}>
@@ -159,51 +160,57 @@ export default function PatientDashboard() {
         <>
           {/* MAIN RECORD */}
           <section className="border p-4 rounded mb-6">
-            <h4 className="font-semibold mb-2">
-              Medical Record
-            </h4>
-            <button
-              className="text-green-600 underline"
-              onClick={() =>
-                downloadFile(selectedToken.cid)
-              }
-            >
-              Download Record
-            </button>
+            <h4 className="font-semibold mb-2">Medical Record</h4>
+            <div className="mb-2">
+              <button
+                className="text-green-600 underline mr-2"
+                onClick={() => showFileText(selectedToken.cid)}
+              >
+                Show Record
+              </button>
+              <button
+                className="text-blue-600 underline"
+                onClick={() => downloadFile(selectedToken.cid)}
+              >
+                Download Record
+              </button>
+            </div>
+
+            {recordContent && (
+              <div className="mt-2 p-2 bg-gray-50 rounded border">
+                {recordContent.raw ? (
+                  <pre>{recordContent.raw}</pre>
+                ) : (
+                  <div>
+                    <p><strong>Patient Name:</strong> {recordContent.patientName}</p>
+                    <p><strong>Patient ID:</strong> {recordContent.patientId}</p>
+                    <p><strong>Hospital:</strong> {recordContent.hospital}</p>
+                    <p><strong>Created At:</strong> {recordContent.createdAt}</p>
+                    <p><strong>Description:</strong> {recordContent.description}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </section>
 
           {/* ENTRIES */}
           <section className="border p-4 rounded mb-6">
-            <h4 className="font-semibold mb-2">
-              Entries ({entries.length})
-            </h4>
-
-            {entries.length === 0 && (
-              <p>No entries yet</p>
-            )}
+            <h4 className="font-semibold mb-2">Entries ({entries.length})</h4>
+            {entries.length === 0 && <p>No entries yet</p>}
 
             <ul>
               {entries.map((e, i) => (
-                <li
-                  key={i}
-                  className="border p-2 mb-2 rounded"
-                >
+                <li key={i} className="border p-2 mb-2 rounded">
                   <p>Author: {e.author}</p>
                   <p>CID: {e.cid}</p>
-
                   <button
                     className="text-green-600 underline"
-                    onClick={() =>
-                      downloadFile(e.cid)
-                    }
+                    onClick={() => downloadFile(e.cid)}
                   >
                     Download Entry
                   </button>
-
                   <p className="text-sm text-gray-500">
-                    {new Date(
-                      e.timestamp * 1000
-                    ).toLocaleString()}
+                    {new Date(e.timestamp * 1000).toLocaleString()}
                   </p>
                 </li>
               ))}
@@ -212,19 +219,13 @@ export default function PatientDashboard() {
 
           {/* DELEGATE */}
           <section className="border p-4 rounded">
-            <h4 className="font-semibold mb-2">
-              Delegate Hospital
-            </h4>
-
+            <h4 className="font-semibold mb-2">Delegate Hospital</h4>
             <input
               className="border p-2 w-full mb-2"
               placeholder="Hospital address (0x...)"
               value={hospitalAddr}
-              onChange={(e) =>
-                setHospitalAddr(e.target.value)
-              }
+              onChange={(e) => setHospitalAddr(e.target.value)}
             />
-
             <div className="flex gap-2">
               <button
                 className="px-3 py-1 bg-amber-600 text-white rounded"
