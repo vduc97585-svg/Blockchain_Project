@@ -8,6 +8,7 @@ from app.models.ehr_models import (
     DelegateHospitalIn,
     RevokeHospitalIn,
     BurnIn, 
+    GrantDoctorIn, 
 )
 from app.services.blockchain import contract, send_tx, web3, Web3
 
@@ -145,12 +146,23 @@ def get_patient_records(patientAddress: str):
     try:
         patient = Web3.to_checksum_address(patientAddress)
         logs = _get_logs_by_event("Mint")
-        records = []
+
+        records_map = {}  # tokenId -> record
+
         for log in logs:
             decoded = _decode_event("Mint", log)
             if Web3.to_checksum_address(decoded.args.patient) == patient:
-                records.append({"tokenId": int(decoded.args.tokenId), "cid": decoded.args.cid})
-        return {"patient": patient, "records": records}
+                token_id = int(decoded.args.tokenId)
+                records_map[token_id] = {
+                    "tokenId": token_id,
+                    "cid": decoded.args.cid,
+                    "blockNumber": log.blockNumber,
+                }
+
+        return {
+            "patient": patient,
+            "records": list(records_map.values()),
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -223,16 +235,21 @@ def revoke_hospital(data: RevokeHospitalIn):
 # WRITE: hospital grant/revoke doctor (hospital owner-only actions)
 # -----------------------------------------
 @router.post("/hospital/grant-doctor")
-def hospital_grant_doctor(data: DelegateHospitalIn):
+def hospital_grant_doctor(data: GrantDoctorIn):
     try:
+        doctor = Web3.to_checksum_address(data.doctor)
         signer_pk = data.signer_private_key
-        doctor = Web3.to_checksum_address(data.hospital)  # reuse field name
-        func = contract.functions.hospital_grant_write(int(data.tokenId), doctor)
+
+        func = contract.functions.hospital_grant_write(
+            int(data.tokenId),
+            doctor
+        )
+
         tx_hash = send_tx(func, signer_pk)
         return {"status": "submitted", "tx_hash": tx_hash}
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
 
 @router.post("/hospital/revoke-doctor")
 def hospital_revoke_doctor(data: DelegateHospitalIn):

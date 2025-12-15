@@ -141,24 +141,25 @@ export default function PatientDashboard() {
   // =============================
   // BURN
   // =============================
-  function burnToken() {
-    const tokenId =
-      selectedToken?.tokenId ?? burnTokenId;
-
+  async function burnToken() {
+    const tokenId = selectedToken?.tokenId ?? burnTokenId;
     if (!tokenId) {
       alert("Chưa có tokenId để burn");
       return;
     }
-
-    if (
-      !window.confirm(
-        `Bạn có chắc muốn BURN token ${tokenId}? Hành động này KHÔNG THỂ HOÀN TÁC`
-      )
-    )
-      return;
-
-    executeTx((c) => c.burn(tokenId));
+  
+    if (!window.confirm(`Bạn có chắc muốn BURN token ${tokenId}?`)) return;
+  
+    await executeTx((c) => c.burn(tokenId));
+  
+    // reload lại token list từ backend
+    await loadTokens(account);
+  
+    setSelectedToken(null);
+    setBurnTokenId("");
   }
+  
+  
 
   // =============================
   // UI

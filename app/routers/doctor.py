@@ -48,29 +48,35 @@ def unregister_doctor(data: DoctorRegisterIn):
     
 @router.get("/{doctor}/tokens")
 def get_doctor_tokens(doctor: str):
-    try:
-        doctor = Web3.to_checksum_address(doctor)
+    doctor = Web3.to_checksum_address(doctor)
+    tokens = []
 
-        tokens = []
-        token_counter = contract.functions.token_counter().call()
+    token_counter = contract.functions.token_counter().call()
 
-        for token_id in range(1, token_counter + 1):
-            exists = contract.functions.exists_token(token_id).call()
-            if not exists:
-                continue
+    for token_id in range(1, token_counter + 1):
 
-            can_write = contract.functions.can_write(token_id, doctor).call()
-            if can_write:
-                cid = contract.functions.tokenURI(token_id).call()
-                patient_addr = contract.functions.ownerOf(token_id).call()  # <-- thêm dòng này
-                tokens.append({
-                    "tokenId": token_id,
-                    "cid": cid,
-                    "patient": patient_addr   # <-- trả luôn patient
-                })
+        # === 1. TOKEN CÒN SỐNG? ===
+        try:
+            patient_addr = contract.functions.ownerOf(token_id).call()
+        except Exception:
+            # token đã burn
+            continue
 
-        return {"tokens": tokens}
+        # === 2. DOCTOR CÓ QUYỀN WRITE? ===
+        if not contract.functions.can_write(token_id, doctor).call():
+            continue
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        cid = contract.functions.token_cid(token_id).call()
+
+        tokens.append({
+            "tokenId": token_id,
+            "cid": cid,
+            "patient": patient_addr,
+        })
+
+    return {"tokens": tokens}
+
+
+
+
 

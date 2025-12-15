@@ -80,9 +80,6 @@ export default function Login({ setRole }) {
   return (
   <div style={styles.wrapper}>
     {/* ===== TIÊU ĐỀ ===== */}
-    <div style={styles.header}>
-      <h1 style={styles.title}>HỒ SƠ BỆNH ÁN ĐIỆN TỬ</h1>
-    </div>
 
     <div style={styles.card}>
       <h2 style={{ marginBottom: 20 }}>Đăng nhập</h2>
@@ -127,7 +124,7 @@ export default function Login({ setRole }) {
 const styles = {
   header: {
   position: "absolute",
-  top: 50,
+  top: 30,
   textAlign: "center",
   },
 

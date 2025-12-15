@@ -254,7 +254,7 @@ export default function HospitalDashboard() {
             )}
 
             <button
-              style={styles.primaryBtn}
+              style={styles.primaryBtn1}
               onClick={uploadToIPFS}
               disabled={loading}
             >
@@ -273,13 +273,13 @@ export default function HospitalDashboard() {
           <section style={styles.card}>
             <h3 style={styles.cardTitle}>Tạo hồ sơ bệnh án</h3>
             <input
-              style={styles.input}
+              style={styles.input1}
               placeholder="Mã hồ sơ (Token ID)"
               value={tokenId}
               onChange={(e) => setTokenId(e.target.value)}
             />
             <input
-              style={styles.input}
+              style={styles.input2}
               placeholder="Địa chỉ ví của Bệnh nhân"
               value={patientAddr}
               onChange={(e) => setPatientAddr(e.target.value)}
@@ -332,7 +332,7 @@ export default function HospitalDashboard() {
               onChange={(e) => setGrantTokenId(e.target.value)}
             />
             <input
-              style={styles.input}
+              style={styles.input2}
               placeholder="Địa chỉ ví của Bác sĩ"
               value={grantDoctorAddr}
               onChange={(e) => setGrantDoctorAddr(e.target.value)}
@@ -359,8 +359,8 @@ export default function HospitalDashboard() {
           <section style={styles.card}>
             <h3 style={styles.cardTitle}>Hủy hồ sơ bệnh án</h3>
             <p style={{ fontSize: 13, color: "#6b7280", marginBottom: 10 }}>
-              Chỉ sử dụng trong trường hợp đặc biệt (mint nhầm, yêu cầu pháp lý).
-              Thao tác không thể hoàn tác.
+              Chú ý: Chỉ sử dụng trong trường hợp đặc biệt!
+            
             </p>
             <input
               style={styles.input}
@@ -373,7 +373,7 @@ export default function HospitalDashboard() {
               onClick={burnRecordByHospital}
               disabled={loading}
             >
-              Burn hồ sơ bệnh án
+              Hủy hồ sơ bệnh án
             </button>
           </section>
         </div>
@@ -420,6 +420,23 @@ const styles = {
     borderRadius: 8,
     border: "1px solid #d1d5db",
     marginBottom: 14,
+    marginTop: 14
+  },
+  input1: {
+    width: "95%",
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    marginBottom: 10,
+    marginTop: 10
+  },
+  input2: {
+    width: "95%",
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    marginBottom: 17,
+    marginTop: 10
   },
   row: { display: "flex", gap: 12 },
   primaryBtn: {
@@ -429,6 +446,15 @@ const styles = {
     color: "#fff",
     border: "none",
     borderRadius: 10,
+  },
+  primaryBtn1: {
+    flex: 1,
+    padding: "10px",
+    background: "#16a34a",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+    marginLeft: 8
   },
   successBtn: {
     width: "100%",

@@ -146,11 +146,11 @@ export default function AdminDashboard() {
         {/* ================= BURN RECORD ================= */}
         <h3>Hủy hồ sơ bệnh án (Burn)</h3>
         <p style={{ color: "#666", marginBottom: 15 }}>
-          Chỉ sử dụng trong trường hợp đặc biệt (mint nhầm, yêu cầu pháp lý).
+          Chú ý: Chỉ sử dụng trong trường hợp đặc biệt!
         </p>
 
         <input
-          placeholder="Token ID cần hủy"
+          placeholder="Mã hồ sơ (Token ID)"
           value={tokenId}
           onChange={(e) => setTokenId(e.target.value)}
           style={styles.input}
@@ -161,7 +161,7 @@ export default function AdminDashboard() {
           disabled={loading}
           style={styles.dangerButton}
         >
-          Burn Record
+          Hủy hồ sơ bệnh án
         </button>
 
         {/* ================= TX INFO ================= */}
@@ -172,7 +172,7 @@ export default function AdminDashboard() {
             </p>
             <p style={styles.hash}>{txHash}</p>
             <p>
-              <b>Status:</b> {txStatus}
+              <b>Trạng thái:</b> {txStatus}
             </p>
           </div>
         )}
@@ -200,7 +200,7 @@ const styles = {
     textAlign: "center",
   },
   input: {
-    width: "100%",
+    width: "95%",
     padding: 12,
     fontSize: 15,
     borderRadius: 8,
