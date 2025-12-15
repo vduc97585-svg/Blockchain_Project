@@ -81,8 +81,7 @@ export default function Login({ setRole }) {
   <div style={styles.wrapper}>
     {/* ===== TIÊU ĐỀ ===== */}
     <div style={styles.header}>
-      <h1 style={styles.title}>HỆ THỐNG Y TẾ</h1>
-      <h1 style={styles.subTitle}>HỒ SƠ BỆNH ÁN ĐIỆN TỬ</h1>
+      <h1 style={styles.title}>HỒ SƠ BỆNH ÁN ĐIỆN TỬ</h1>
     </div>
 
     <div style={styles.card}>
@@ -93,13 +92,13 @@ export default function Login({ setRole }) {
         disabled={status === "loading"}
         style={styles.button}
       >
-        {status === "loading" ? "Đang kết nối..." : "Connect MetaMask"}
+        {status === "loading" ? "Đang kết nối..." : "Kết nối ví Metamask"}
       </button>
 
       {address && (
         <div style={styles.info}>
           <p><b>Ví:</b> {address}</p>
-          <p><b>Role:</b> {role || "Đang xác định..."}</p>
+          <p><b>Vai trò:</b> {role || "Đang xác định..."}</p>
         </div>
       )}
 
@@ -133,7 +132,7 @@ const styles = {
   },
 
 title: {
-  fontSize: 32,
+  fontSize: 60,
   fontWeight: "bold",
   color: "#ffffff",
   letterSpacing: 2,

@@ -12,9 +12,12 @@ export default function HospitalDashboard() {
   const [tokenId, setTokenId] = useState("");
   const [patientAddr, setPatientAddr] = useState("");
 
-  // doctor
+  // doctor (register / unregister)
   const [doctorAddr, setDoctorAddr] = useState("");
+
+  // grant / revoke
   const [grantTokenId, setGrantTokenId] = useState("");
+  const [grantDoctorAddr, setGrantDoctorAddr] = useState("");
 
   const [txHash, setTxHash] = useState("");
   const [loading, setLoading] = useState(false);
@@ -144,7 +147,7 @@ export default function HospitalDashboard() {
   // ✍️ GRANT / REVOKE WRITE
   // =============================
   async function grantWrite() {
-    if (!grantTokenId || !isEth(doctorAddr))
+    if (!grantTokenId || !isEth(grantDoctorAddr))
       return alert("Thiếu tokenId hoặc doctor");
 
     try {
@@ -152,7 +155,7 @@ export default function HospitalDashboard() {
       const { contract } = await loadContract();
       const tx = await contract.hospital_grant_write(
         Number(grantTokenId),
-        doctorAddr
+        grantDoctorAddr
       );
       setTxHash(tx.hash);
       await tx.wait();
@@ -166,7 +169,7 @@ export default function HospitalDashboard() {
   }
 
   async function revokeWrite() {
-    if (!grantTokenId || !isEth(doctorAddr))
+    if (!grantTokenId || !isEth(grantDoctorAddr))
       return alert("Thiếu tokenId hoặc doctor");
 
     try {
@@ -174,7 +177,7 @@ export default function HospitalDashboard() {
       const { contract } = await loadContract();
       const tx = await contract.hospital_revoke_write(
         Number(grantTokenId),
-        doctorAddr
+        grantDoctorAddr
       );
       setTxHash(tx.hash);
       await tx.wait();
@@ -277,6 +280,12 @@ export default function HospitalDashboard() {
           placeholder="Token ID"
           value={grantTokenId}
           onChange={(e) => setGrantTokenId(e.target.value)}
+        />
+        <input
+          className="border p-2 w-full mb-2"
+          placeholder="Doctor address (grant/revoke)"
+          value={grantDoctorAddr}
+          onChange={(e) => setGrantDoctorAddr(e.target.value)}
         />
         <div className="flex gap-2">
           <button
