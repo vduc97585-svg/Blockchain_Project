@@ -201,131 +201,369 @@ export default function DoctorDashboard() {
   // UI
   // =============================
   return (
-    <div style={{ padding: 40, maxWidth: 800 }}>
-      <h2>Doctor Dashboard</h2>
-      <p><b>Connected:</b> {account}</p>
+    <div style={styles.page}>
+      <div style={styles.container}>
 
-      <hr />
+        {/* ===== HEADER ===== */}
+        <div style={styles.header}>
+          <h2 style={styles.title}>Trang Bác sĩ</h2>
+          <p style={styles.subtitle}>
+            Ví kết nối:
+            <span style={styles.address}>{account}</span>
+          </p>
+        </div>
 
-      <h3>Tokens You Can Write ({tokens.length})</h3>
-      {tokens.length === 0 && <p>Không có token nào</p>}
+        {/* ===== MAIN LAYOUT ===== */}
+        <div style={styles.layout}>
 
-      <ul>
-        {tokens.map((t) => (
-          <li key={t.tokenId} style={{ marginBottom: 8 }}>
-            <button onClick={() => loadEntries(t)}>
-              Token #{t.tokenId}
-            </button>
-            <span style={{ marginLeft: 10 }}>Patient: {t.patient}</span>
-          </li>
-        ))}
-      </ul>
+          {/* ===== LEFT: TOKEN LIST ===== */}
+          <aside style={styles.sidebar}>
+            <h3 style={styles.sectionTitle}>
+              Danh sách hồ sơ bệnh án (SL: {tokens.length})
+            </h3>
 
-      {selectedToken && (
-        <>
-          {/* MINT RECORD */}
-          <section className="border p-4 rounded mb-6">
-            <h4 className="font-semibold mb-2">Medical Record</h4>
-            <div className="mb-2">
-              <button
-                className="text-green-600 underline mr-2"
-                onClick={() => showRecord(selectedToken.cid)}
-              >
-                Show Record
-              </button>
-              <button
-                className="text-blue-600 underline"
-                onClick={() => downloadFile(selectedToken.cid)}
-              >
-                Download Record
-              </button>
-            </div>
-            {recordContent && (
-              <div className="mt-2 p-2 bg-gray-50 rounded border">
-                {recordContent.raw ? (
-                  <pre>{recordContent.raw}</pre>
-                ) : (
-                  <div>
-                    <p><strong>Patient Name:</strong> {recordContent.patientName}</p>
-                    <p><strong>Patient ID:</strong> {recordContent.patientId}</p>
-                    <p><strong>Hospital:</strong> {recordContent.hospital}</p>
-                    <p><strong>Created At:</strong> {recordContent.createdAt}</p>
-                    <p><strong>Description:</strong> {recordContent.description}</p>
-                    <p><strong>Note:</strong> {recordContent.note}</p>
-                  </div>
-                )}
-              </div>
+            {tokens.length === 0 && (
+              <p style={styles.muted}>Hiện không có hồ sơ bệnh án</p>
             )}
-          </section>
 
-          {/* ENTRIES */}
-          <section className="border p-4 rounded mb-6">
-            <h4 className="font-semibold mb-2">Entries ({entries.length})</h4>
-            {entries.length === 0 && <p>No entries yet</p>}
-            <ul>
-              {entries.map((e, i) => (
-                <li key={i} className="border p-2 mb-2 rounded">
-                  <p>Author: {e.author}</p>
-                  <p>CID: {e.cid}</p>
+            <ul style={styles.tokenList}>
+              {tokens.map((t) => (
+                <li key={t.tokenId}>
                   <button
-                    className="text-green-600 underline"
-                    onClick={() => downloadFile(e.cid)}
+                    style={{
+                      ...styles.tokenBtn,
+                      ...(selectedToken?.tokenId === t.tokenId
+                        ? styles.tokenBtnActive
+                        : {}),
+                    }}
+                    onClick={() => loadEntries(t)}
                   >
-                    Download Entry
+                    <div><b>Mã hồ sơ: {t.tokenId}</b></div>
+                    <div style={styles.smallText}>
+                      Địa chỉ của Bệnh nhân: 
+                      <span style={styles.wallet}>{t.patient}</span>
+                    </div>
                   </button>
-                  <p className="text-sm text-gray-500">
-                    {new Date(e.timestamp * 1000).toLocaleString()}
-                  </p>
                 </li>
               ))}
             </ul>
-          </section>
+          </aside>
 
-          {/* UPLOAD / ADD ENTRY */}
-          <section className="border p-4 rounded mb-6">
-            <h4 className="font-semibold mb-2">Add Entry</h4>
-            <div style={{ marginTop: 10 }}>
-              <input
-                type="file"
-                onChange={(e) => setUploadFile(e.target.files[0])}
-              />
-              <button
-                onClick={handleUploadToIPFS}
-                disabled={loading}
-                style={{ marginLeft: 10 }}
-              >
-                Upload to IPFS
-              </button>
-            </div>
+          {/* ===== RIGHT: DETAILS ===== */}
+          <main style={styles.content}>
+            {!selectedToken && (
+              <div style={styles.emptyState}>
+                Chọn một hồ sơ bệnh án để xem chi tiết
+              </div>
+            )}
 
-            <div style={{ marginTop: 15 }}>
-              <label>CID</label>
-              <input
-                type="text"
-                value={cid}
-                onChange={(e) => setCid(e.target.value)}
-                placeholder="CID từ IPFS"
-                style={{ width: "100%", padding: 6 }}
-              />
-            </div>
+            {selectedToken && (
+              <>
+                {/* ===== MINT RECORD ===== */}
+                <section style={styles.card}>
+                  <h4 style={styles.cardTitle}>Chi tiết hồ sơ bệnh án</h4>
 
-            <button
-              onClick={addEntry}
-              disabled={loading || !cid}
-              style={{ marginTop: 15 }}
-            >
-              Add Entry to Blockchain
-            </button>
-          </section>
-        </>
-      )}
+                  <div style={styles.row}>
+                    <button
+                      style={styles.linkBtn}
+                      onClick={() => downloadFile(selectedToken.cid)}
+                    >
+                      Tải xuống
+                    </button>
+                  </div>
 
-      {txHash && (
-        <div style={{ marginTop: 30 }}>
-          <p><b>TX Hash:</b> {txHash}</p>
-          <p><b>Status:</b> {txStatus}</p>
+                  {recordContent && (
+                    <div style={styles.recordBox}>
+                      {recordContent.raw ? (
+                        <pre>{recordContent.raw}</pre>
+                      ) : (
+                        <>
+                          <p><b>Tên bệnh nhân:</b> {recordContent.patientName}</p>
+                          <p><b>Mã bệnh nhân:</b> {recordContent.patientId}</p>
+                          <p><b>Bệnh viện:</b> {recordContent.hospital}</p>
+                          <p><b>Thời điểm tạo:</b> {recordContent.createdAt}</p>
+                          <p><b>Mô tả:</b> {recordContent.description}</p>
+                      
+                        </>
+                      )}
+                    </div>
+                  )}
+                </section>
+
+                {/* ===== ENTRIES ===== */}
+                <section style={styles.card}>
+                  <h4 style={styles.cardTitle}>
+                    Bản ghi (SL: {entries.length})
+                  </h4>
+
+                  {entries.length === 0 && (
+                    <p style={styles.muted}>No entries yet</p>
+                  )}
+
+                  {entries.map((e, i) => (
+                    <div key={i} style={styles.entryItem}>
+                      <p><b>Bác sĩ khám:</b> {e.author}</p>
+                      <p><b>CID:</b> {e.cid}</p>
+                      <button
+                        style={styles.linkBtn}
+                        onClick={() => downloadFile(e.cid)}
+                      >
+                        Tải xuống
+                      </button>
+                      <div style={styles.timestamp}>
+                        {new Date(e.timestamp * 1000).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </section>
+
+                {/* ===== ADD ENTRY ===== */}
+                <section style={styles.card}>
+                  <h4 style={styles.cardTitle}>➕ Thêm bản ghi </h4>
+
+                  <div style={styles.row}>
+                    <label style={styles.fileLabel}>
+                      📎 Chọn file hồ sơ
+                      <input
+                        type="file"
+                        style={styles.hiddenFileInput}
+                        onChange={(e) => setUploadFile(e.target.files[0])}
+                      />
+                    </label>
+
+                    {uploadFile && (
+                      <div style={styles.fileName}>
+                        {uploadFile.name}
+                      </div>
+                    )}
+
+                    <button
+                      style={styles.primaryBtn}
+                      onClick={handleUploadToIPFS}
+                      disabled={loading}
+                    >
+                      Tải lên IPFS
+                    </button>
+                  </div>
+
+                  <input
+                    style={styles.input}
+                    placeholder="CID từ IPFS"
+                    value={cid}
+                    onChange={(e) => setCid(e.target.value)}
+                  />
+
+                  <button
+                    style={styles.successBtn}
+                    onClick={addEntry}
+                    disabled={loading || !cid}
+                  >
+                    Thêm bản ghi vào hồ sơ bệnh án
+                  </button>
+                </section>
+              </>
+            )}
+          </main>
         </div>
-      )}
+
+        {/* ===== TX STATUS ===== */}
+        {txHash && (
+          <div style={styles.txBox}>
+            <p><b>TX Hash:</b> {txHash}</p>
+            <p><b>Status:</b> {txStatus}</p>
+          </div>
+        )}
+      </div>
     </div>
-  );
+);
 }
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#f1f5f9",
+    padding: 40,
+    fontFamily: "Segoe UI, Roboto, sans-serif",
+  },
+  wallet: {
+  display: "block",
+  marginTop: 4,
+  fontSize: 14,
+  color: "#374151",
+
+  wordBreak: "break-all",     
+  overflowWrap: "anywhere",   
+  whiteSpace: "normal",
+  },
+  container: {
+    maxWidth: 1200,
+    margin: "0 auto",
+  },
+  header: {
+    marginBottom: 30,
+    textAlign: "center",
+  },
+  title: {
+    fontSize: 40,
+    fontWeight: "bold",
+    color: "#1f2937",
+  },
+  subtitle: {
+    fontSize: 14,
+    color: "#475569",
+    marginTop: 6,
+  },
+  address: {
+    marginLeft: 6,
+    fontWeight: 500,
+    wordBreak: "break-all",
+  },
+  layout: {
+    display: "grid",
+    gridTemplateColumns: "320px 1fr",
+    gap: 24,
+  },
+  sidebar: {
+    background: "#fff",
+    borderRadius: 14,
+    padding: 20,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  tokenList: {
+    listStyle: "none",
+    padding: 0,
+    margin: 0,
+  },
+  tokenBtn: {
+    width: "100%",
+    textAlign: "left",
+    padding: 12,
+    marginBottom: 10,
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    background: "#fff",
+    cursor: "pointer",
+  },
+  tokenBtnActive: {
+    background: "#e0e7ff",
+    borderColor: "#6366f1",
+  },
+  content: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 20,
+  },
+  emptyState: {
+    background: "#fff",
+    borderRadius: 14,
+    padding: 40,
+    textAlign: "center",
+    color: "#64748b",
+  },
+  card: {
+    background: "#fff",
+    borderRadius: 14,
+    padding: 20,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 12,
+  },
+  recordBox: {
+    background: "#f8fafc",
+    border: "1px solid #e5e7eb",
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 10,
+  },
+  entryItem: {
+    border: "1px solid #e5e7eb",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 10,
+  },
+  timestamp: {
+    fontSize: 12,
+    color: "#6b7280",
+    marginTop: 4,
+  },
+  row: {
+    display: "flex",
+    gap: 10,
+    marginBottom: 12,
+    alignItems: "center",
+  },
+  input: {
+    width: "100%",
+    padding: 10,
+    borderRadius: 8,
+    border: "1px solid #d1d5db",
+    marginBottom: 12,
+  },
+  primaryBtn: {
+    padding: "8px 14px",
+    background: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    cursor: "pointer",
+  },
+  successBtn: {
+    width: "100%",
+    padding: "10px",
+    background: "#16a34a",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+    cursor: "pointer",
+  },
+  linkBtn: {
+    background: "none",
+    border: "none",
+    color: "#2563eb",
+    cursor: "pointer",
+    padding: 0,
+  },
+  muted: {
+    color: "#6b7280",
+    fontSize: 14,
+  },
+  txBox: {
+    marginTop: 30,
+    background: "#fff",
+    padding: 16,
+    borderRadius: 12,
+    boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+  },
+  fileLabel: {
+  display: "inline-block",
+  padding: "10px 16px",
+  borderRadius: 10,
+  background: "#f1f5f9",
+  border: "1px dashed #94a3b8",
+  color: "#1e293b",
+  cursor: "pointer",
+  fontSize: 14,
+  textAlign: "center",
+  transition: "all .2s ease",
+  marginBottom: 10,
+},
+
+hiddenFileInput: {
+  display: "none",
+},
+
+fileName: {
+  marginTop: 8,
+  fontSize: 13,
+  color: "#374151",
+  wordBreak: "break-word",
+},
+};

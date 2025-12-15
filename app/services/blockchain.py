@@ -57,8 +57,11 @@ def simulate_tx(tx):
         raise ContractLogicError(f"Reverted: {e}")
 
 
-def send_tx(func, signer_pk=PRIVATE_KEY):
-    signer = web3.eth.account.from_key(signer_pk)
+def send_tx(func, signer_pk=None):
+    # Fallback to admin key if signer_pk is None
+    pk = signer_pk if signer_pk else PRIVATE_KEY
+
+    signer = web3.eth.account.from_key(pk)
     signer_address = signer.address
 
     tx = func.build_transaction({
@@ -68,8 +71,10 @@ def send_tx(func, signer_pk=PRIVATE_KEY):
         "gasPrice": web3.eth.gas_price,
     })
 
+    # Simulate before sending (catch revert early)
     simulate_tx(tx)
 
-    signed = web3.eth.account.sign_transaction(tx, signer_pk)
+    signed = signer.sign_transaction(tx)
     tx_hash = web3.eth.send_raw_transaction(signed.raw_transaction)
+
     return "0x" + tx_hash.hex()

@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ethers } from "ethers";
 import axios from "axios";
-import CONTRACT_ABI from "../contract/abi.json";
-import { CONTRACT_ADDRESS } from "../web3";
+import { loadContract } from "../web3";
 
 const BACKEND = "http://localhost:8000";
 
@@ -13,6 +12,9 @@ export default function PatientDashboard() {
   const [entries, setEntries] = useState([]);
   const [hospitalAddr, setHospitalAddr] = useState("");
   const [recordContent, setRecordContent] = useState(null);
+
+  // burn
+  const [burnTokenId, setBurnTokenId] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [txHash, setTxHash] = useState("");
@@ -35,7 +37,7 @@ export default function PatientDashboard() {
   }, []);
 
   // =============================
-  // LOAD TOKENS CỦA PATIENT
+  // LOAD TOKENS
   // =============================
   async function loadTokens(addr) {
     try {
@@ -43,7 +45,7 @@ export default function PatientDashboard() {
       setTokens(res.data.records || []);
     } catch (e) {
       console.error(e);
-      alert("Không load được record");
+      alert("Không load được hồ sơ");
     }
   }
 
@@ -56,9 +58,11 @@ export default function PatientDashboard() {
   // =============================
   async function loadEntries(token) {
     setSelectedToken(token);
-    setRecordContent(null); // reset content khi chọn token mới
+    setRecordContent(null);
     try {
-      const res = await axios.get(`${BACKEND}/record/${token.tokenId}/entries`);
+      const res = await axios.get(
+        `${BACKEND}/record/${token.tokenId}/entries`
+      );
       setEntries(res.data.entries || []);
     } catch (e) {
       console.error(e);
@@ -67,191 +71,309 @@ export default function PatientDashboard() {
   }
 
   // =============================
-  // SHOW FILE TEXT (DECRYPTED)
+  // SHOW RECORD
   // =============================
-  async function showFileText(cid) {
+  async function showRecord(cid) {
     try {
       const res = await fetch(`${BACKEND}/ipfs/cat/${cid}`);
-      const text = await res.text(); // đọc file decrypted
+      const text = await res.text();
       try {
-        const data = JSON.parse(text);
-        setRecordContent(data);
+        setRecordContent(JSON.parse(text));
       } catch {
         setRecordContent({ raw: text });
       }
     } catch (e) {
-      console.error(e);
-      alert("Không load được file");
+      alert("Không load được record");
     }
   }
 
   // =============================
-  // DOWNLOAD FILE (ENTRIES)
+  // DOWNLOAD FILE
   // =============================
-  async function downloadFile(cid, filename) {
+  async function downloadFile(cid) {
+    const res = await fetch(`${BACKEND}/ipfs/cat/${cid}`);
+    const blob = await res.blob();
+    const mime = res.headers.get("content-type") || "";
+    const url = URL.createObjectURL(blob);
+
+    if (mime.startsWith("image/") || mime === "application/pdf") {
+      const w = window.open();
+      w.document.body.innerHTML = `<iframe src="${url}" style="width:100%;height:100vh;"></iframe>`;
+    } else {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "file";
+      a.click();
+    }
+  }
+
+  // =============================
+  // TX EXEC
+  // =============================
+  async function executeTx(fn) {
+    setLoading(true);
     try {
-      const res = await fetch(`${BACKEND}/ipfs/cat/${cid}`);
-      const blob = await res.blob();
-      const mime = res.headers.get("content-type") || "application/octet-stream";
-      const url = URL.createObjectURL(blob);
-
-      if (mime.startsWith("image/") || mime === "application/pdf") {
-        const newTab = window.open();
-        if (!newTab) return alert("Pop-up bị chặn");
-        newTab.document.body.innerHTML = `<iframe src="${url}" style="width:100%;height:100vh;" frameborder="0"></iframe>`;
-      } else {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename || "file";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-      }
+      const { contract } = await loadContract();
+      const tx = await fn(contract);
+      setTxHash(tx.hash);
+      setTxStatus("Pending...");
+      const receipt = await tx.wait();
+      setTxStatus(`Mined at block ${receipt.blockNumber}`);
     } catch (e) {
-      console.error(e);
-      alert("Download thất bại");
+      alert(e.message);
+    } finally {
+      setLoading(false);
     }
   }
 
-  // =============================
-  // DELEGATE / REVOKE HOSPITAL
-  // =============================
   function delegateHospital() {
-    if (!selectedToken || !hospitalAddr)
-      return alert("Thiếu token hoặc hospital");
-
     executeTx((c) =>
       c.delegate_hospital(selectedToken.tokenId, hospitalAddr)
     );
   }
 
   function revokeHospital() {
-    if (!selectedToken || !hospitalAddr)
-      return alert("Thiếu token hoặc hospital");
-
     executeTx((c) =>
       c.revoke_hospital_delegate(selectedToken.tokenId, hospitalAddr)
     );
   }
 
   // =============================
-  // RENDER
+  // BURN
+  // =============================
+  function burnToken() {
+    const tokenId =
+      selectedToken?.tokenId ?? burnTokenId;
+
+    if (!tokenId) {
+      alert("Chưa có tokenId để burn");
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `Bạn có chắc muốn BURN token ${tokenId}? Hành động này KHÔNG THỂ HOÀN TÁC`
+      )
+    )
+      return;
+
+    executeTx((c) => c.burn(tokenId));
+  }
+
+  // =============================
+  // UI
   // =============================
   return (
-    <div className="p-6 max-w-2xl">
-      <h2 className="text-xl font-bold mb-2">Patient Dashboard</h2>
-      <p className="mb-4">Connected: {account}</p>
+    <div style={styles.page}>
+      <div style={styles.container}>
 
-      <h3 className="font-semibold mb-2">Your Records ({tokens.length})</h3>
-      <ul className="mb-4">
-        {tokens.map((t) => (
-          <li key={t.tokenId}>
-            <button
-              className="text-blue-600 underline"
-              onClick={() => loadEntries(t)}
-            >
-              Token #{t.tokenId}
-            </button>
-          </li>
-        ))}
-      </ul>
+        {/* HEADER */}
+        <div style={styles.header}>
+          <h2 style={styles.title}>Trang Bệnh nhân</h2>
+          <p style={styles.subtitle}>
+            Ví kết nối: <span style={styles.address}>{account}</span>
+          </p>
+        </div>
 
-      {selectedToken && (
-        <>
-          {/* MAIN RECORD */}
-          <section className="border p-4 rounded mb-6">
-            <h4 className="font-semibold mb-2">Medical Record</h4>
-            <div className="mb-2">
-              <button
-                className="text-green-600 underline mr-2"
-                onClick={() => showFileText(selectedToken.cid)}
-              >
-                Show Record
-              </button>
-              <button
-                className="text-blue-600 underline"
-                onClick={() => downloadFile(selectedToken.cid)}
-              >
-                Download Record
-              </button>
-            </div>
+        <div style={styles.layout}>
 
-            {recordContent && (
-              <div className="mt-2 p-2 bg-gray-50 rounded border">
-                {recordContent.raw ? (
-                  <pre>{recordContent.raw}</pre>
-                ) : (
-                  <div>
-                    <p><strong>Patient Name:</strong> {recordContent.patientName}</p>
-                    <p><strong>Patient ID:</strong> {recordContent.patientId}</p>
-                    <p><strong>Hospital:</strong> {recordContent.hospital}</p>
-                    <p><strong>Created At:</strong> {recordContent.createdAt}</p>
-                    <p><strong>Description:</strong> {recordContent.description}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </section>
+          {/* SIDEBAR */}
+          <aside style={styles.sidebar}>
+            <h3 style={styles.sectionTitle}>
+              Hồ sơ bệnh án ({tokens.length})
+            </h3>
 
-          {/* ENTRIES */}
-          <section className="border p-4 rounded mb-6">
-            <h4 className="font-semibold mb-2">Entries ({entries.length})</h4>
-            {entries.length === 0 && <p>No entries yet</p>}
-
-            <ul>
-              {entries.map((e, i) => (
-                <li key={i} className="border p-2 mb-2 rounded">
-                  <p>Author: {e.author}</p>
-                  <p>CID: {e.cid}</p>
+            <ul style={styles.tokenList}>
+              {tokens.map((t) => (
+                <li key={t.tokenId}>
                   <button
-                    className="text-green-600 underline"
-                    onClick={() => downloadFile(e.cid)}
+                    style={{
+                      ...styles.tokenBtn,
+                      ...(selectedToken?.tokenId === t.tokenId
+                        ? styles.tokenBtnActive
+                        : {}),
+                    }}
+                    onClick={() => loadEntries(t)}
                   >
-                    Download Entry
+                    <b>Mã hồ sơ: {t.tokenId}</b>
                   </button>
-                  <p className="text-sm text-gray-500">
-                    {new Date(e.timestamp * 1000).toLocaleString()}
-                  </p>
                 </li>
               ))}
             </ul>
-          </section>
+          </aside>
 
-          {/* DELEGATE */}
-          <section className="border p-4 rounded">
-            <h4 className="font-semibold mb-2">Delegate Hospital</h4>
-            <input
-              className="border p-2 w-full mb-2"
-              placeholder="Hospital address (0x...)"
-              value={hospitalAddr}
-              onChange={(e) => setHospitalAddr(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <button
-                className="px-3 py-1 bg-amber-600 text-white rounded"
-                onClick={delegateHospital}
-                disabled={loading}
-              >
-                Delegate
-              </button>
-              <button
-                className="px-3 py-1 bg-red-600 text-white rounded"
-                onClick={revokeHospital}
-                disabled={loading}
-              >
-                Revoke
-              </button>
-            </div>
-          </section>
-        </>
-      )}
+          {/* CONTENT */}
+          <main style={styles.content}>
+            {!selectedToken && (
+              <div style={styles.emptyState}>
+                Chọn một hồ sơ để xem chi tiết
+              </div>
+            )}
 
-      {txHash && (
-        <div className="mt-4 text-sm break-all">
-          <p>TX: {txHash}</p>
-          <p>Status: {txStatus}</p>
+            {selectedToken && (
+              <>
+                {/* RECORD */}
+                <section style={styles.card}>
+                  <h4 style={styles.cardTitle}>Hồ sơ bệnh án</h4>
+
+                  <div style={styles.row}>
+                    <button
+                      style={styles.linkBtn}
+                      onClick={() => showRecord(selectedToken.cid)}
+                    >
+                      Xem
+                    </button>
+                    <button
+                      style={styles.linkBtn}
+                      onClick={() => downloadFile(selectedToken.cid)}
+                    >
+                      Tải xuống
+                    </button>
+                  </div>
+
+                  {recordContent && (
+                    <div style={styles.recordBox}>
+                      {recordContent.raw ? (
+                        <pre>{recordContent.raw}</pre>
+                      ) : (
+                        <>
+                          <p><b>Tên:</b> {recordContent.patientName}</p>
+                          <p><b>Mã:</b> {recordContent.patientId}</p>
+                          <p><b>Bệnh viện:</b> {recordContent.hospital}</p>
+                          <p><b>Ngày tạo:</b> {recordContent.createdAt}</p>
+                          <p><b>Mô tả:</b> {recordContent.description}</p>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </section>
+
+                {/* ENTRIES */}
+                <section style={styles.card}>
+                  <h4 style={styles.cardTitle}>
+                    Bản ghi ({entries.length})
+                  </h4>
+
+                  {entries.map((e, i) => (
+                    <div key={i} style={styles.entryItem}>
+                      <p><b>Bác sĩ:</b> {e.author}</p>
+                      <p><b>CID:</b> {e.cid}</p>
+                      <button
+                        style={styles.linkBtn}
+                        onClick={() => downloadFile(e.cid)}
+                      >
+                        Tải xuống
+                      </button>
+                      <div style={styles.timestamp}>
+                        {new Date(e.timestamp * 1000).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+                </section>
+
+                {/* DELEGATE */}
+                <section style={styles.card}>
+                  <h4 style={styles.cardTitle}>Uỷ quyền bệnh viện</h4>
+
+                  <input
+                    style={styles.input}
+                    placeholder="Địa chỉ bệnh viện (0x...)"
+                    value={hospitalAddr}
+                    onChange={(e) => setHospitalAddr(e.target.value)}
+                  />
+
+                  <div style={styles.row}>
+                    <button
+                      style={styles.primaryBtn}
+                      onClick={delegateHospital}
+                      disabled={loading}
+                    >
+                      Delegate
+                    </button>
+                    <button
+                      style={styles.dangerBtn}
+                      onClick={revokeHospital}
+                      disabled={loading}
+                    >
+                      Revoke
+                    </button>
+                  </div>
+                </section>
+
+                {/* 🔥 BURN TOKEN */}
+                <section style={{ ...styles.card, border: "2px solid #dc2626" }}>
+                  <h4 style={{ ...styles.cardTitle, color: "#dc2626" }}>
+                    Burn hồ sơ bệnh án
+                  </h4>
+
+                  <p style={{ fontSize: 14, marginBottom: 10 }}>
+                    Token đang chọn:{" "}
+                    <b>{selectedToken.tokenId}</b>
+                  </p>
+
+                  <input
+                    style={styles.input}
+                    placeholder="Hoặc nhập tokenId khác (tuỳ chọn)"
+                    value={burnTokenId}
+                    onChange={(e) => setBurnTokenId(e.target.value)}
+                  />
+
+                  <button
+                    style={styles.dangerBtn}
+                    onClick={burnToken}
+                    disabled={loading}
+                  >
+                    Burn Token
+                  </button>
+                </section>
+              </>
+            )}
+          </main>
         </div>
-      )}
+
+        {txHash && (
+          <div style={styles.txBox}>
+            <p><b>TX:</b> {txHash}</p>
+            <p><b>Status:</b> {txStatus}</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+
+/* === styles === */
+const styles = {
+  page: { minHeight: "100vh", background: "#f1f5f9", padding: 40 },
+  container: { maxWidth: 1200, margin: "0 auto" },
+  header: { textAlign: "center", marginBottom: 30 },
+  title: { fontSize: 36, fontWeight: "bold" },
+  subtitle: { fontSize: 14, color: "#475569" },
+  address: { fontWeight: 500, wordBreak: "break-all" },
+  layout: { display: "grid", gridTemplateColumns: "320px 1fr", gap: 24 },
+  sidebar: { background: "#fff", padding: 20, borderRadius: 14 },
+  sectionTitle: { fontWeight: "bold", marginBottom: 12 },
+  tokenList: { listStyle: "none", padding: 0 },
+  tokenBtn: {
+    width: "100%",
+    padding: 12,
+    borderRadius: 10,
+    border: "1px solid #e5e7eb",
+    marginBottom: 10,
+    cursor: "pointer",
+  },
+  tokenBtnActive: { background: "#e0e7ff", borderColor: "#6366f1" },
+  content: { display: "flex", flexDirection: "column", gap: 20 },
+  emptyState: { background: "#fff", padding: 40, borderRadius: 14 },
+  card: { background: "#fff", padding: 20, borderRadius: 14 },
+  cardTitle: { fontWeight: "bold", marginBottom: 12 },
+  recordBox: { background: "#f8fafc", padding: 12, borderRadius: 8 },
+  entryItem: { border: "1px solid #e5e7eb", padding: 12, borderRadius: 8 },
+  timestamp: { fontSize: 12, color: "#6b7280" },
+  row: { display: "flex", gap: 10 },
+  input: { width: "100%", padding: 10, marginBottom: 12 },
+  linkBtn: { color: "#2563eb", background: "none", border: "none" },
+  primaryBtn: { background: "#2563eb", color: "#fff", padding: "8px 14px" },
+  dangerBtn: { background: "#dc2626", color: "#fff", padding: "8px 14px" },
+  txBox: { marginTop: 20, background: "#fff", padding: 16 },
+};
