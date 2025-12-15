@@ -1,0 +1,147 @@
+------------------------------------------------------------
+1. TEST ĐĂNG KÝ VÀ PHÂN QUYỀN (ROLE & REGISTRATION)
+------------------------------------------------------------
+
+test_register_hospital
+- Kiểm tra admin (contract owner) có thể đăng ký bệnh viện.
+- Đảm bảo trạng thái hospital được lưu đúng trong contract.
+
+test_only_owner_can_register_hospital
+- Đảm bảo chỉ admin mới có quyền đăng ký bệnh viện.
+- Ngăn người dùng thường tự ý nâng quyền.
+
+test_hospital_register_doctor
+- Kiểm tra bệnh viện có thể đăng ký bác sĩ.
+- Đảm bảo bác sĩ được gắn đúng với bệnh viện.
+
+test_get_role
+- Kiểm tra hàm getRole().
+- Xác nhận mỗi địa chỉ được phân loại đúng:
+  + contract_owner
+  + hospital
+  + doctor
+  + patient
+- Hữu ích cho frontend và kiểm tra logic off-chain.
+
+------------------------------------------------------------
+2. TEST TẠO HỒ SƠ Y TẾ (MINT RECORD)
+------------------------------------------------------------
+
+test_mint_record
+- Kiểm tra bệnh viện có thể mint hồ sơ bệnh án.
+- Xác nhận:
+  + Token tồn tại
+  + Chủ sở hữu là bệnh nhân
+  + Steward là bệnh viện mint
+  + Số dư token của bệnh nhân tăng
+
+test_only_hospital_can_mint
+- Đảm bảo chỉ bệnh viện đã đăng ký mới mint được hồ sơ.
+- Ngăn bệnh nhân hoặc bên ngoài tự tạo hồ sơ giả.
+
+------------------------------------------------------------
+3. TEST ỦY QUYỀN BỆNH VIỆN (HOSPITAL DELEGATION)
+------------------------------------------------------------
+
+test_delegate_hospital
+- Kiểm tra bệnh nhân có thể ủy quyền bệnh viện khác
+  cho một hồ sơ cụ thể.
+- Đảm bảo mapping hospital_delegates được cập nhật đúng.
+
+test_revoke_delegate_blocks_grant
+- Kiểm tra sau khi bệnh nhân thu hồi ủy quyền,
+  bệnh viện đó không thể cấp quyền ghi cho bác sĩ nữa.
+- Ngăn lạm quyền sau khi bị revoke.
+
+------------------------------------------------------------
+4. TEST QUYỀN GHI NỘI BỘ (INTERNAL WRITE PERMISSION)
+------------------------------------------------------------
+
+test_grant_internal_write_by_steward
+- Kiểm tra steward (bệnh viện mint token) có thể cấp quyền ghi
+  cho bác sĩ theo từng hồ sơ.
+
+test_grant_internal_write_by_delegated_hospital
+- Kiểm tra bệnh viện được ủy quyền cũng có thể cấp quyền ghi.
+- Đảm bảo delegation hoạt động đúng scope.
+
+test_unauthorized_hospital_cannot_grant
+- Đảm bảo bệnh viện không phải steward và không được ủy quyền
+  thì không thể cấp quyền ghi.
+
+test_revoke_internal_write_blocks_entry
+- Kiểm tra sau khi thu hồi quyền ghi nội bộ,
+  bác sĩ không thể thêm entry mới.
+
+test_unregistered_hospital_still_steward
+- Kiểm tra trường hợp bệnh viện bị unregister
+  nhưng vẫn là steward của token cũ.
+- Đảm bảo quyền steward không bị mất ngoài ý muốn.
+
+------------------------------------------------------------
+5. TEST QUYỀN GHI NGOẠI (EXTERNAL WRITE PERMISSION)
+------------------------------------------------------------
+
+test_external_write_grant
+- Kiểm tra bệnh nhân có thể cấp quyền ghi cho địa chỉ bên ngoài
+  (ví dụ phòng xét nghiệm, hệ thống AI).
+
+test_revoke_external_write_blocks_entry
+- Kiểm tra sau khi revoke quyền,
+  địa chỉ bên ngoài không thể ghi thêm dữ liệu.
+
+------------------------------------------------------------
+6. TEST GHI DỮ LIỆU (ADD ENTRY)
+------------------------------------------------------------
+
+test_add_entry_internal_doctor
+- Kiểm tra bác sĩ có quyền nội bộ có thể thêm entry.
+- Xác nhận event EntryAdded được emit đúng.
+
+test_add_entry_external_writer
+- Kiểm tra địa chỉ được bệnh nhân cấp quyền có thể thêm entry.
+
+test_add_entry_without_permission_should_fail
+- Đảm bảo không có quyền thì không ghi được dữ liệu.
+- Bảo vệ tính toàn vẹn hồ sơ y tế.
+
+------------------------------------------------------------
+7. TEST HÀM HỖ TRỢ (HELPER FUNCTIONS)
+------------------------------------------------------------
+
+test_can_write_helper
+- Kiểm tra hàm can_write() hoạt động đúng.
+- Dùng cho frontend để hiển thị quyền ghi.
+
+------------------------------------------------------------
+8. TEST HỦY HỒ SƠ (BURN)
+------------------------------------------------------------
+
+test_burn_by_patient
+- Kiểm tra bệnh nhân có thể tự hủy hồ sơ của mình.
+
+test_burn_by_steward_and_admin
+- Kiểm tra steward và admin cũng có quyền hủy hồ sơ.
+- Phục vụ trường hợp pháp lý hoặc quản trị hệ thống.
+
+------------------------------------------------------------
+9. TEST NON-TRANSFERABLE (SOULBOUND)
+------------------------------------------------------------
+
+test_non_transferable
+- Đảm bảo token hồ sơ y tế không thể chuyển nhượng.
+- Ngăn mua bán hoặc trao đổi hồ sơ bệnh án.
+
+------------------------------------------------------------
+KẾT LUẬN
+------------------------------------------------------------
+
+Bộ test này bao phủ:
+- Kiểm soát truy cập (Access Control)
+- Phân quyền chi tiết theo từng token
+- Cơ chế ủy quyền an toàn
+- Ngăn ghi và truy cập trái phép
+- Đảm bảo hồ sơ y tế bất biến và không thể mua bán
+
+=> Contract đạt yêu cầu về bảo mật logic và tính đúng đắn
+cho một hệ thống EHR phi tập trung.

@@ -37,4 +37,4 @@ class RevokeHospitalIn(BaseModel):
 
 class BurnIn(BaseModel):
     tokenId: int
-    signer_private_key: str
+    signer_private_key: Optional[str] = None
